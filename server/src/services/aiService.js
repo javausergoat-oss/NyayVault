@@ -118,7 +118,43 @@ export async function generateEmbedding(text) {
   }
 }
 
+export async function generateRagResponse(userMessage, contextChunks) {
+  if (!openaiClient) {
+    return "AI Assistant is currently offline. Please configure OPENROUTER_API_KEY.";
+  }
+
+  const contextText = contextChunks.map((chunk, i) => 
+    `[Document snippet ${i + 1} | File: ${chunk.filename}]:\n${chunk.text_content}`
+  ).join('\n\n');
+
+  const systemPrompt = `You are a highly capable AI Assistant for law enforcement and legal professionals.
+Your task is to answer the user's question accurately based ONLY on the evidence snippets provided below.
+If the answer is not contained in the provided evidence, explicitly state that you cannot answer based on the current case files. 
+Do not invent or hallucinate information. When answering, reference the document snippets (e.g. "According to the Medical Report...").
+
+=== CASE EVIDENCE CONTEXT ===
+${contextText}
+=============================
+`;
+
+  try {
+    const completion = await openaiClient.chat.completions.create({
+      model: LLM_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+      ],
+    });
+
+    return completion.choices[0].message.content;
+  } catch (err) {
+    console.error("RAG completion failed:", err.message);
+    throw new Error("Failed to generate AI response.");
+  }
+}
+
 export default {
   analyzeDocumentIntelligence,
-  generateEmbedding
+  generateEmbedding,
+  generateRagResponse
 };

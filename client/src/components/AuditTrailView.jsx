@@ -1,7 +1,71 @@
-import { Activity, Clock } from 'lucide-react';
+import { Activity, Clock, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
-export default function AuditTrailView({ logs }) {
+export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
+  
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(15, 23, 42); // slate-900
+    doc.text('Chain of Custody Audit Report', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    doc.text(`Case Number: ${caseNumber}`, 14, 36);
+
+    // Official Seal / Disclaimer
+    doc.setFontSize(9);
+    doc.setTextColor(185, 28, 28); // red-700
+    doc.text('CONFIDENTIAL & COURT-ADMISSIBLE: This document contains a cryptographically secure audit trail.', 14, 46);
+
+    // Table Data
+    const tableColumn = ["Timestamp", "Action", "Officer / User", "IP Address", "Log ID"];
+    const tableRows = [];
+
+    logs.forEach(log => {
+      const rowData = [
+        new Date(log.timestamp).toLocaleString(),
+        log.action,
+        `${log.user_badge} (${log.user_role.replace('_', ' ')})`,
+        log.ip_address,
+        log.id.split('-')[0]
+      ];
+      tableRows.push(rowData);
+    });
+
+    // Generate Table
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 52,
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59] }, // slate-800
+      styles: { fontSize: 8, cellPadding: 3 },
+      alternateRowStyles: { fillColor: [248, 250, 252] } // slate-50
+    });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text(
+        `Page ${i} of ${pageCount} - SIH Evidence Vault System`,
+        doc.internal.pageSize.getWidth() / 2, 
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`Audit_Report_${caseNumber}.pdf`);
+  };
+
   if (!logs || logs.length === 0) {
     return (
       <div className="card p-12 text-center text-slate-500 dark:text-slate-400 border border-dashed border-border rounded-2xl">
@@ -15,9 +79,17 @@ export default function AuditTrailView({ logs }) {
     <div className="card p-8 rounded-2xl border border-border shadow-sm bg-card relative overflow-hidden">
       <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
       
-      <h3 className="text-2xl font-bold mb-8 flex items-center gap-2 text-slate-900 dark:text-white relative z-10">
-        <Activity className="text-emerald-500" /> Immutable Chain of Custody
-      </h3>
+      <div className="flex justify-between items-center mb-8 relative z-10">
+        <h3 className="text-2xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">
+          <Activity className="text-emerald-500" /> Immutable Chain of Custody
+        </h3>
+        <button 
+          onClick={generatePDF}
+          className="btn-primary flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+        >
+          <Download size={16} /> Export Official PDF
+        </button>
+      </div>
       
       <div className="flex flex-col gap-4 relative z-10">
         {logs.map((log, index) => (
@@ -39,7 +111,7 @@ export default function AuditTrailView({ logs }) {
                 </span>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                Performed by <span className="font-semibold">{log.user_badge} ({log.user_role})</span>
+                Performed by <span className="font-semibold">{log.user_badge} ({log.user_role.replace('_', ' ')})</span>
               </p>
               
               <div className="mt-3 flex gap-2 flex-wrap">

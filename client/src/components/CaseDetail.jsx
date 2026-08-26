@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, FileText, Activity, Search, Shield, Lock } from 'lucide-react';
+import { ArrowLeft, FileText, Activity, Search, Shield, Lock, Bot } from 'lucide-react';
 import { getCaseDetails, getCaseDocuments, getCaseAuditTrail } from '../services/api';
 import DocumentUploader from './DocumentUploader';
 import DocumentTable from './DocumentTable';
 import AuditTrailView from './AuditTrailView';
 import SmartSearch from './SmartSearch';
+import CaseAssistant from './CaseAssistant';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CaseDetail({ caseId, onBack }) {
@@ -96,6 +97,16 @@ export default function CaseDetail({ caseId, onBack }) {
         </button>
         <button 
           className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
+            activeTab === 'chat' 
+              ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+          }`}
+          onClick={() => setActiveTab('chat')}
+        >
+          <Bot size={16} /> AI Assistant
+        </button>
+        <button 
+          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
             activeTab === 'audit' 
               ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' 
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
@@ -125,8 +136,12 @@ export default function CaseDetail({ caseId, onBack }) {
             <SmartSearch caseId={caseId} />
           )}
 
+          {activeTab === 'chat' && (
+            <CaseAssistant caseId={caseId} />
+          )}
+
           {activeTab === 'audit' && (
-            <AuditTrailView logs={auditLogs} />
+            <AuditTrailView logs={auditLogs} caseNumber={caseDetails.case_number} />
           )}
         </motion.div>
       </AnimatePresence>

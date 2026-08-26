@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, ShieldCheck, ShieldAlert, FileText, Loader2, Copy, X } from 'lucide-react';
+import { Download, ShieldCheck, ShieldAlert, FileText, Loader2, Copy, X, Maximize2 } from 'lucide-react';
 import { verifyDocument, getDownloadUrl } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -7,6 +7,44 @@ export default function DocumentTable({ documents, onRefresh }) {
   const [verifying, setVerifying] = useState({});
   const [verifyResult, setVerifyResult] = useState({});
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loadingDoc, setLoadingDoc] = useState(null);
+
+  const openDocumentViewer = async (doc) => {
+    setLoadingDoc(doc.id);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}`, { 
+        headers: { 
+          'x-user-id': localStorage.getItem('sih_active_user'),
+          'Authorization': `Bearer ${localStorage.getItem('sih_token')}`
+        }
+      });
+      const fullDoc = await res.json();
+      setSelectedDoc(fullDoc.document);
+
+      const fileRes = await fetch(getDownloadUrl(doc.id), {
+        headers: { 
+          'x-user-id': localStorage.getItem('sih_active_user'),
+          'Authorization': `Bearer ${localStorage.getItem('sih_token')}`
+        }
+      });
+      const blob = await fileRes.blob();
+      setBlobUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      console.error("Failed to load viewer:", err);
+      alert("Error loading document.");
+    } finally {
+      setLoadingDoc(null);
+    }
+  };
+
+  const closeViewer = () => {
+    setSelectedDoc(null);
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+      setBlobUrl(null);
+    }
+  };
 
   const handleVerify = async (docId) => {
     setVerifying(prev => ({ ...prev, [docId]: true }));
@@ -54,9 +92,9 @@ export default function DocumentTable({ documents, onRefresh }) {
             return (
               <tr key={doc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <td className="p-4">
-                  <a href={`#doc-${doc.id}`} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">
                     {doc.filename}
-                  </a>
+                  </span>
                   <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">By {doc.uploaded_by_badge}</div>
                 </td>
                 <td className="p-4">
@@ -97,26 +135,13 @@ export default function DocumentTable({ documents, onRefresh }) {
                 </td>
                 <td className="p-4 text-right space-x-2">
                   <button 
-                    onClick={async () => {
-                      const res = await fetch(`/api/documents/${doc.id}`, { headers: { 'x-user-id': localStorage.getItem('sih_active_user') || 'usr-pol-042' }});
-                      const fullDoc = await res.json();
-                      setSelectedDoc(fullDoc.document);
-                    }}
-                    className="btn-outline text-xs px-3 py-1.5 rounded-lg border-blue-200 dark:border-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 font-semibold inline-flex items-center gap-1"
+                    onClick={() => openDocumentViewer(doc)}
+                    disabled={loadingDoc === doc.id}
+                    className="btn-primary text-xs px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 shadow-sm disabled:opacity-50"
                   >
-                    <FileText size={14} /> AI Intel
+                    {loadingDoc === doc.id ? <Loader2 size={14} className="animate-spin" /> : <Maximize2 size={14} />} 
+                    View & Intel
                   </button>
-                  <a 
-                    href={getDownloadUrl(doc.id)} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="btn-primary text-xs px-3 py-1.5 rounded-lg font-semibold inline-flex items-center gap-1 shadow-sm"
-                    onClick={(e) => {
-                      setTimeout(onRefresh, 1000);
-                    }}
-                  >
-                    <Download size={14} /> View
-                  </a>
                 </td>
               </tr>
             );
@@ -125,60 +150,82 @@ export default function DocumentTable({ documents, onRefresh }) {
       </table>
       
       <AnimatePresence>
-        {selectedDoc && (
+        {selectedDoc && blobUrl && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="card bg-card w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-border"
+              className="card bg-card w-full max-w-[95vw] h-[95vh] flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-border"
             >
-              <div className="flex justify-between items-center p-6 border-b border-border bg-slate-50/50 dark:bg-slate-900/50">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <FileText className="text-blue-500" /> AI Intelligence Report
-                </h2>
-                <button onClick={() => setSelectedDoc(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
-                  <X size={20} />
+              <div className="flex justify-between items-center p-4 border-b border-border bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <FileText className="text-blue-500" /> Integrated Document Viewer
+                  </h2>
+                  <span className="text-sm font-mono text-slate-500 bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded">
+                    {selectedDoc.filename}
+                  </span>
+                </div>
+                <button onClick={closeViewer} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
+                  <X size={24} />
                 </button>
               </div>
               
-              <div className="p-6 overflow-y-auto flex-1">
-                <div className="grid grid-cols-2 gap-6 mb-8">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-border">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 font-semibold">Classification</p>
-                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{selectedDoc.document_type}</p>
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
+                {/* Left side: Document PDF Viewer */}
+                <div className="border-r border-border bg-slate-200 dark:bg-slate-950 flex flex-col h-full relative">
+                  <div className="absolute top-3 left-3 z-10 px-3 py-1.5 bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider rounded-md backdrop-blur-md shadow-sm">
+                    Original Source File
                   </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-border">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 font-semibold">AI Confidence</p>
-                    <p className="text-lg font-bold">{((selectedDoc.classification_confidence || 0) * 100).toFixed(1)}%</p>
-                  </div>
-                </div>
-                
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">Extracted Metadata</h3>
-                  {selectedDoc.metadata && Object.keys(selectedDoc.metadata).length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {Object.entries(selectedDoc.metadata).map(([k, v]) => (
-                        <div key={k} className="border border-border p-3 rounded-lg bg-white dark:bg-slate-900">
-                          <p className="text-xs text-slate-500 font-semibold mb-1 uppercase truncate">{k}</p>
-                          <p className="font-medium text-sm text-slate-800 dark:text-slate-200">{v}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : <p className="text-muted italic">No specific metadata extracted.</p>}
+                  <iframe 
+                    src={blobUrl}
+                    className="w-full h-full border-none bg-white dark:bg-slate-800"
+                    title={selectedDoc.filename}
+                  />
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-bold mb-4 border-b border-border pb-2">Raw Extracted Text</h3>
-                  <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-border max-h-64 overflow-y-auto">
-                    <pre className="text-xs font-mono whitespace-pre-wrap word-break text-slate-700 dark:text-slate-300">
-                      {selectedDoc.extracted_text || 'No text extracted.'}
-                    </pre>
+                {/* Right side: AI Intelligence */}
+                <div className="p-6 overflow-y-auto flex flex-col h-full bg-slate-50 dark:bg-slate-900/20">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">AI Extraction & Metadata</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="p-4 bg-white dark:bg-slate-800/80 rounded-xl border border-border shadow-sm">
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 font-semibold">Classification</p>
+                      <p className="text-base font-bold text-blue-600 dark:text-blue-400">{selectedDoc.document_type}</p>
+                    </div>
+                    <div className="p-4 bg-white dark:bg-slate-800/80 rounded-xl border border-border shadow-sm">
+                      <p className="text-xs text-slate-500 uppercase tracking-wider mb-1 font-semibold">AI Confidence</p>
+                      <p className="text-base font-bold">{((selectedDoc.classification_confidence || 0) * 100).toFixed(1)}%</p>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-6">
+                    <h3 className="text-sm font-bold mb-3 border-b border-border pb-2 text-slate-700 dark:text-slate-300">Structured Data</h3>
+                    {selectedDoc.metadata && Object.keys(selectedDoc.metadata).length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {Object.entries(selectedDoc.metadata).map(([k, v]) => (
+                          <div key={k} className="border border-border p-3 rounded-lg bg-white dark:bg-slate-800/80 shadow-sm">
+                            <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase truncate tracking-wider">{k}</p>
+                            <p className="font-medium text-sm text-slate-800 dark:text-slate-200">{v}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <p className="text-xs text-slate-500 italic">No specific metadata extracted.</p>}
+                  </div>
+
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <h3 className="text-sm font-bold mb-3 border-b border-border pb-2 text-slate-700 dark:text-slate-300">Raw OCR / Extracted Text</h3>
+                    <div className="bg-white dark:bg-slate-800/80 p-4 rounded-xl border border-border flex-1 overflow-y-auto shadow-inner">
+                      <pre className="text-xs font-mono whitespace-pre-wrap word-break text-slate-600 dark:text-slate-400 leading-relaxed">
+                        {selectedDoc.extracted_text || 'No text extracted.'}
+                      </pre>
+                    </div>
                   </div>
                 </div>
               </div>
