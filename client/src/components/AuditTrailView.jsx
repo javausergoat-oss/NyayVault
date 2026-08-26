@@ -6,40 +6,43 @@ import 'jspdf-autotable';
 export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
   
   const generatePDF = () => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(22);
-    doc.setTextColor(15, 23, 42); // slate-900
-    doc.text('Chain of Custody Audit Report', 14, 22);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100, 116, 139); // slate-500
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
-    doc.text(`Case Number: ${caseNumber}`, 14, 36);
+    try {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text('Chain of Custody Audit Report', 14, 22);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+      doc.text(`Case Number: ${caseNumber}`, 14, 36);
 
-    // Official Seal / Disclaimer
-    doc.setFontSize(9);
-    doc.setTextColor(185, 28, 28); // red-700
-    doc.text('CONFIDENTIAL & COURT-ADMISSIBLE: This document contains a cryptographically secure audit trail.', 14, 46);
+      // Official Seal / Disclaimer
+      doc.setFontSize(9);
+      doc.setTextColor(185, 28, 28); // red-700
+      doc.text('CONFIDENTIAL & COURT-ADMISSIBLE: This document contains a cryptographically secure audit trail.', 14, 46);
 
-    // Table Data
-    const tableColumn = ["Timestamp", "Action", "Officer / User", "IP Address", "Log ID"];
-    const tableRows = [];
+      // Table Data
+      const tableColumn = ["Timestamp", "Action", "Officer / User", "IP Address", "Log ID"];
+      const tableRows = [];
 
-    logs.forEach(log => {
-      const rowData = [
-        new Date(log.timestamp).toLocaleString(),
-        log.action,
-        `${log.user_badge} (${log.user_role.replace('_', ' ')})`,
-        log.ip_address,
-        log.id.split('-')[0]
-      ];
-      tableRows.push(rowData);
-    });
+      logs.forEach(log => {
+        const badge = log.badge_number || log.user_badge || 'SYSTEM';
+        const role = log.user_role ? log.user_role.replace('_', ' ') : 'AUTOMATED';
+        const rowData = [
+          new Date(log.timestamp).toLocaleString(),
+          log.action,
+          `${badge} (${role})`,
+          log.ip_address || 'Internal',
+          log.id.split('-')[0]
+        ];
+        tableRows.push(rowData);
+      });
 
-    // Generate Table
-    doc.autoTable({
+      // Generate Table
+      doc.autoTable({
       head: [tableColumn],
       body: tableRows,
       startY: 52,
@@ -63,7 +66,11 @@ export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
       );
     }
 
-    doc.save(`Audit_Report_${caseNumber}.pdf`);
+      doc.save(`Audit_Report_${caseNumber}.pdf`);
+    } catch (e) {
+      console.error("PDF Generation Error:", e);
+      alert("Failed to generate PDF: " + e.message);
+    }
   };
 
   if (!logs || logs.length === 0) {
@@ -111,7 +118,7 @@ export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
                 </span>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                Performed by <span className="font-semibold">{log.user_badge} ({log.user_role.replace('_', ' ')})</span>
+                Performed by <span className="font-semibold">{log.badge_number || log.user_badge || 'SYSTEM'} ({log.user_role ? log.user_role.replace('_', ' ') : 'AUTOMATED'})</span>
               </p>
               
               <div className="mt-3 flex gap-2 flex-wrap">

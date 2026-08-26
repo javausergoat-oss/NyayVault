@@ -38,7 +38,7 @@ export default function App() {
     }
 
     fetch('/api/auth/me', {
-      headers: { 'Authorization': Bearer  }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => {
         if (!res.ok) throw new Error('Invalid token');
