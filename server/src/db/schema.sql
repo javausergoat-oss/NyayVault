@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS documents (
     classification_confidence NUMERIC(4,3),
     extracted_text TEXT,
     metadata JSONB DEFAULT '{}'::jsonb,
+    is_redacted BOOLEAN DEFAULT FALSE,
+    parent_document_id VARCHAR(64) REFERENCES documents(id),
     uploaded_by VARCHAR(64) NOT NULL REFERENCES users(id),
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

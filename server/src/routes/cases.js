@@ -6,6 +6,7 @@ import { semanticSearch } from '../services/searchService.js';
 import { generateRagResponse } from '../services/aiService.js';
 import { uploadSingleEvidence } from '../middleware/uploadMiddleware.js';
 import { logAuditEvent } from '../services/auditService.js';
+import { requireRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
@@ -91,7 +92,7 @@ router.get('/:caseId/documents', async (req, res, next) => {
  * POST /api/cases/:caseId/documents
  * Securely uploads a document, computes SHA-256 hash, stores in MinIO, and creates DB + Audit record.
  */
-router.post('/:caseId/documents', uploadSingleEvidence, async (req, res, next) => {
+router.post('/:caseId/documents', requireRole(['INVESTIGATOR', 'FORENSICS', 'ADMIN', 'SENIOR_OFFICER']), uploadSingleEvidence, async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({

@@ -8,7 +8,7 @@ import SmartSearch from './SmartSearch';
 import CaseAssistant from './CaseAssistant';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function CaseDetail({ caseId, onBack }) {
+export default function CaseDetail({ caseId, onBack, currentUser }) {
   const [caseDetails, setCaseDetails] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -127,7 +127,9 @@ export default function CaseDetail({ caseId, onBack }) {
         >
           {activeTab === 'evidence' && (
             <div className="flex flex-col gap-6">
-              <DocumentUploader caseId={caseId} onUploadComplete={loadData} />
+              {currentUser && !['JUDGE', 'AUDITOR'].includes(currentUser.role) && (
+                <DocumentUploader caseId={caseId} onUploadComplete={loadData} />
+              )}
               <DocumentTable documents={documents} onRefresh={loadData} />
             </div>
           )}

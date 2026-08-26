@@ -11,6 +11,7 @@ import authRouter from './routes/auth.js';
 import casesRouter from './routes/cases.js';
 import documentsRouter from './routes/documents.js';
 import auditRouter from './routes/audit.js';
+import devRouter from './routes/dev.js';
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/cases', casesRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/dev', devRouter);
 
 // Centralized error handling
 app.use(errorHandler);

@@ -95,9 +95,10 @@ export default function App() {
           <CaseDetail 
             caseId={activeCaseId} 
             onBack={() => setActiveCaseId(null)} 
+            currentUser={currentUser}
           />
         ) : (
-          <CaseList onCaseSelect={setActiveCaseId} />
+          <CaseList onCaseSelect={setActiveCaseId} currentUser={currentUser} />
         )}
       </main>
     </div>
