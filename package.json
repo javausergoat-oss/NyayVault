@@ -1,0 +1,22 @@
+{
+  "name": "sih26190-secure-doc-mgmt",
+  "version": "1.0.0",
+  "description": "Secure Digital Document Management System for Legal and Investigation Documents (SIH26190)",
+  "private": true,
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "test:e2e": "cd server && npm run test:e2e"
+  },
+  "keywords": [
+    "evidence-management",
+    "sih26190",
+    "legal-docs",
+    "chain-of-custody",
+    "minio",
+    "sha256"
+  ],
+  "author": "SIH Team",
+  "license": "ISC"
+}

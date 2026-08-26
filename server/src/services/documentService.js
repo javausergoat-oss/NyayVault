@@ -1,0 +1,270 @@
+import { v4 as uuidv4 } from 'uuid';
+import { query } from '../config/db.js';
+import { uploadObject, getObjectStream, deleteObject } from '../storage/minioClient.js';
+import { calculateBufferHash, calculateStreamHash } from '../utils/hashUtils.js';
+import { validateEvidenceFile, sanitizeFilename } from '../utils/validator.js';
+import { logAuditEvent, AuditActions } from './auditService.js';
+import { getCaseById } from './caseService.js';
+
+/**
+ * Uploads, cryptographically hashes, stores in MinIO, and records a document in PostgreSQL.
+ * @param {Object} params
+ * @param {string} params.caseId - Target case ID
+ * @param {Object} params.file - Multer file object
+ * @param {Object} params.user - Authenticated user context
+ * @param {string} params.ipAddress - Client IP address
+ * @returns {Promise<Object>} Created document record
+ */
+export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.1' }) {
+  // 1. Verify case exists
+  await getCaseById(caseId);
+
+  // 2. Validate file integrity & format
+  const validation = validateEvidenceFile(file);
+  if (!validation.isValid) {
+    const error = new Error(validation.error);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // 3. Generate unique document ID and clean filename
+  const documentId = `doc-${uuidv4().substring(0, 10)}`;
+  const cleanFilename = sanitizeFilename(file.originalname);
+  const storageKey = `cases/${caseId}/documents/${documentId}/${cleanFilename}`;
+
+  // 4. Calculate SHA-256 hash immediately on raw uploaded bytes
+  const sha256Hash = calculateBufferHash(file.buffer);
+  const fileSize = file.size || file.buffer.length;
+  const mimeType = file.mimetype || 'application/octet-stream';
+  const now = new Date().toISOString();
+  const uploaderId = user?.id || 'usr-pol-042';
+
+  // 5. Store file in MinIO Object Storage
+  let uploadSuccess = false;
+  try {
+    await uploadObject({
+      key: storageKey,
+      buffer: file.buffer,
+      contentType: mimeType,
+    });
+    uploadSuccess = true;
+  } catch (storageErr) {
+    console.error('Failed to upload file to MinIO:', storageErr);
+    const error = new Error(`Object storage error: ${storageErr.message}`);
+    error.statusCode = 500;
+    throw error;
+  }
+
+  // 6. Insert document record into PostgreSQL (with rollback protection)
+  try {
+    const insertDocSql = `
+      INSERT INTO documents (
+        id, case_id, filename, storage_key, mime_type, file_size, 
+        sha256_hash, status, uploaded_by, uploaded_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *;
+    `;
+
+    const docRes = await query(insertDocSql, [
+      documentId,
+      caseId,
+      cleanFilename,
+      storageKey,
+      mimeType,
+      fileSize,
+      sha256Hash,
+      'uploaded',
+      uploaderId,
+      now,
+    ]);
+
+    const createdDoc = docRes.rows[0];
+
+    // 7. Record Chain of Custody Audit Log
+    await logAuditEvent({
+      userId: uploaderId,
+      caseId,
+      documentId,
+      action: AuditActions.DOCUMENT_UPLOADED,
+      ipAddress,
+      metadata: {
+        filename: cleanFilename,
+        fileSize,
+        mimeType,
+        sha256Hash,
+        storageKey,
+      },
+    });
+
+    return createdDoc;
+  } catch (dbErr) {
+    // Rollback: Clean up uploaded object in MinIO to avoid orphaned evidence
+    if (uploadSuccess) {
+      console.warn(`Database insert failed. Rolling back MinIO object at ${storageKey}...`);
+      await deleteObject({ key: storageKey });
+    }
+    console.error('Failed to create database document record:', dbErr);
+    const error = new Error(`Database error: ${dbErr.message}`);
+    error.statusCode = 500;
+    throw error;
+  }
+}
+
+/**
+ * Retrieves all documents for a case.
+ */
+export async function getDocumentsByCase(caseId) {
+  // Ensure case exists
+  await getCaseById(caseId);
+
+  const sql = `
+    SELECT 
+      d.id,
+      d.case_id,
+      d.filename,
+      d.storage_key,
+      d.mime_type,
+      d.file_size,
+      d.sha256_hash,
+      d.status,
+      d.document_type,
+      d.classification_confidence,
+      d.uploaded_at,
+      u.id as uploader_id,
+      u.full_name as uploaded_by_name,
+      u.badge_number as uploaded_by_badge,
+      u.role as uploaded_by_role
+    FROM documents d
+    LEFT JOIN users u ON d.uploaded_by = u.id
+    WHERE d.case_id = $1
+    ORDER BY d.uploaded_at DESC;
+  `;
+
+  const res = await query(sql, [caseId]);
+  return res.rows;
+}
+
+/**
+ * Retrieves a single document by ID.
+ */
+export async function getDocumentById(documentId) {
+  const sql = `
+    SELECT 
+      d.id,
+      d.case_id,
+      d.filename,
+      d.storage_key,
+      d.mime_type,
+      d.file_size,
+      d.sha256_hash,
+      d.status,
+      d.document_type,
+      d.classification_confidence,
+      d.metadata,
+      d.extracted_text,
+      d.uploaded_at,
+      u.id as uploader_id,
+      u.full_name as uploaded_by_name,
+      u.badge_number as uploaded_by_badge,
+      u.role as uploaded_by_role,
+      c.case_number,
+      c.title as case_title
+    FROM documents d
+    LEFT JOIN users u ON d.uploaded_by = u.id
+    LEFT JOIN cases c ON d.case_id = c.id
+    WHERE d.id = $1;
+  `;
+
+  const res = await query(sql, [documentId]);
+  if (res.rows.length === 0) {
+    const error = new Error(`Document not found with ID: ${documentId}`);
+    error.statusCode = 404;
+    throw error;
+  }
+  return res.rows[0];
+}
+
+/**
+ * Verifies the live cryptographic integrity of a document against MinIO bytes.
+ */
+export async function verifyDocumentIntegrity(documentId, user, ipAddress = '127.0.0.1') {
+  const doc = await getDocumentById(documentId);
+
+  // Read object stream from MinIO
+  const { stream } = await getObjectStream({ key: doc.storage_key });
+
+  // Calculate live SHA-256 checksum from storage stream
+  const computedHash = await calculateStreamHash(stream);
+  const isMatch = computedHash.toLowerCase() === doc.sha256_hash.toLowerCase();
+
+  const auditAction = isMatch
+    ? AuditActions.DOCUMENT_INTEGRITY_VERIFIED
+    : AuditActions.DOCUMENT_INTEGRITY_FAILED;
+
+  // Log verification event in chain of custody
+  await logAuditEvent({
+    userId: user?.id || doc.uploader_id,
+    caseId: doc.case_id,
+    documentId: doc.id,
+    action: auditAction,
+    ipAddress,
+    metadata: {
+      filename: doc.filename,
+      storedHash: doc.sha256_hash,
+      computedHash,
+      isTamperFree: isMatch,
+    },
+  });
+
+  return {
+    documentId: doc.id,
+    filename: doc.filename,
+    isTamperFree: isMatch,
+    storedHash: doc.sha256_hash,
+    computedHash,
+    verifiedAt: new Date().toISOString(),
+    status: isMatch ? 'VERIFIED_AUTHENTIC' : 'TAMPER_DETECTED',
+  };
+}
+
+/**
+ * Prepares an authorized document stream for download and records an audit log.
+ */
+export async function downloadDocument(documentId, user, ipAddress = '127.0.0.1') {
+  const doc = await getDocumentById(documentId);
+
+  const { stream, contentType, contentLength } = await getObjectStream({
+    key: doc.storage_key,
+  });
+
+  // Log download action in chain of custody
+  await logAuditEvent({
+    userId: user?.id || 'usr-pol-042',
+    caseId: doc.case_id,
+    documentId: doc.id,
+    action: AuditActions.DOCUMENT_DOWNLOADED,
+    ipAddress,
+    metadata: {
+      filename: doc.filename,
+      fileSize: doc.file_size,
+      sha256Hash: doc.sha256_hash,
+    },
+  });
+
+  return {
+    stream,
+    filename: doc.filename,
+    contentType: doc.mime_type || contentType,
+    contentLength: doc.file_size || contentLength,
+    sha256Hash: doc.sha256_hash,
+  };
+}
+
+export default {
+  uploadDocument,
+  getDocumentsByCase,
+  getDocumentById,
+  verifyDocumentIntegrity,
+  downloadDocument,
+};

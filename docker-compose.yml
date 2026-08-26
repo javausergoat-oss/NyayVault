@@ -1,0 +1,62 @@
+services:
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: sih26190_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sih_admin
+      POSTGRES_PASSWORD: sih_secure_password_2026
+      POSTGRES_DB: sih26190_evidence_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./server/src/db/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sih_admin -d sih26190_evidence_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO S3-Compatible Object Storage Service
+  minio:
+    image: minio/minio:latest
+    container_name: sih26190_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+    ports:
+      - "9000:9000" # MinIO S3 API
+      - "9001:9001" # MinIO Web Console UI
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MinIO Bucket Auto-Creation Service
+  create-bucket:
+    image: minio/mc:latest
+    container_name: sih26190_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadminpassword;
+      /usr/bin/mc mb --ignore-existing myminio/sih26190-evidence;
+      /usr/bin/mc anonymous set none myminio/sih26190-evidence;
+      echo 'Bucket sih26190-evidence initialized successfully';
+      exit 0;
+      "
+
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
