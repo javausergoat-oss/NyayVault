@@ -88,9 +88,14 @@ export async function listCases(user = null) {
   `;
   
   const params = [];
-  if (user && user.role === 'INVESTIGATING_OFFICER') {
-    sql += ` WHERE c.created_by = $1 OR EXISTS (SELECT 1 FROM documents d2 WHERE d2.case_id = c.id AND d2.uploaded_by = $1)`;
-    params.push(user.id);
+  if (user) {
+    if (user.role === 'INVESTIGATING_OFFICER') {
+      sql += ` WHERE c.created_by = $1 OR EXISTS (SELECT 1 FROM documents d2 WHERE d2.case_id = c.id AND d2.uploaded_by = $1)`;
+      params.push(user.id);
+    } else if (['JUDICIAL_OFFICER', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE'].includes(user.role)) {
+      sql += ` WHERE EXISTS (SELECT 1 FROM case_assignments ca WHERE ca.case_id = c.id AND ca.user_id = $1)`;
+      params.push(user.id);
+    }
   }
   
   sql += ` GROUP BY c.id, u.id ORDER BY c.created_at DESC;`;
