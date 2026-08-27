@@ -1,15 +1,16 @@
 import { OpenAI } from 'openai';
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const LLM_MODEL = process.env.LLM_MODEL || 'google/gemini-2.5-flash';
-
-let openaiClient = null;
-
-if (OPENROUTER_API_KEY) {
-  openaiClient = new OpenAI({
+function getOpenAIClient() {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: OPENROUTER_API_KEY,
+    apiKey: apiKey,
   });
+}
+
+function getLlmModel() {
+  return process.env.LLM_MODEL || 'google/gemini-2.5-flash';
 }
 
 /**
@@ -19,7 +20,7 @@ if (OPENROUTER_API_KEY) {
  * @returns {Promise<Object>} The parsed JSON containing document_type, confidence, reason, and metadata
  */
 export async function analyzeDocumentIntelligence(text, filename) {
-  if (!openaiClient) {
+  if (!getOpenAIClient()) {
     console.warn("OPENROUTER_API_KEY not configured. Skipping AI analysis.");
     return {
       document_type: 'UNKNOWN_NO_AI',
@@ -62,8 +63,9 @@ Do not wrap the JSON in markdown code blocks. Just output raw JSON.
 `;
 
   try {
-    const completion = await openaiClient.chat.completions.create({
-      model: LLM_MODEL,
+    const completion = await getOpenAIClient().chat.completions.create({
+      model: getLlmModel(),
+      max_tokens: 4000,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Filename: ${filename}\n\nDocument Text:\n${truncatedText}` }
@@ -95,13 +97,13 @@ Do not wrap the JSON in markdown code blocks. Just output raw JSON.
  * Generates vector embeddings for a given text chunk using OpenAI's embedding model.
  */
 export async function generateEmbedding(text) {
-  if (!openaiClient) {
+  if (!getOpenAIClient()) {
     console.warn("OPENROUTER_API_KEY not configured. Skipping embedding generation.");
     return Array(1536).fill(0.1); 
   }
 
   try {
-    const response = await openaiClient.embeddings.create({
+    const response = await getOpenAIClient().embeddings.create({
       model: 'text-embedding-3-small',
       input: text,
       encoding_format: 'float'
@@ -114,7 +116,7 @@ export async function generateEmbedding(text) {
 }
 
 export async function generateRagResponse(userMessage, contextChunks) {
-  if (!openaiClient) {
+  if (!getOpenAIClient()) {
     return "AI Assistant is currently offline. Please configure OPENROUTER_API_KEY.";
   }
 
@@ -133,8 +135,9 @@ ${contextText}
 `;
 
   try {
-    const completion = await openaiClient.chat.completions.create({
-      model: LLM_MODEL,
+    const completion = await getOpenAIClient().chat.completions.create({
+      model: getLlmModel(),
+      max_tokens: 4000,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
@@ -151,7 +154,7 @@ ${contextText}
  * Uses AI to identify sensitive PII information for redaction.
  */
 export async function suggestRedactions(text) {
-  if (!openaiClient) {
+  if (!getOpenAIClient()) {
     throw new Error("AI Assistant is currently offline. Please configure OPENROUTER_API_KEY.");
   }
 
@@ -182,8 +185,9 @@ Do not wrap the JSON in markdown code blocks. Just output raw JSON.
 `;
 
   try {
-    const completion = await openaiClient.chat.completions.create({
-      model: LLM_MODEL,
+    const completion = await getOpenAIClient().chat.completions.create({
+      model: getLlmModel(),
+      max_tokens: 4000,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: truncatedText }

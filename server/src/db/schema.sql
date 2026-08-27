@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS documents (
     sha256_hash VARCHAR(64) NOT NULL,
     status VARCHAR(50) DEFAULT 'uploaded',
     document_type VARCHAR(100) DEFAULT 'UNKNOWN',
+    document_category VARCHAR(50) DEFAULT 'GENERAL',
     classification_confidence NUMERIC(4,3),
     extracted_text TEXT,
     metadata JSONB DEFAULT '{}'::jsonb,
@@ -71,6 +72,26 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
+-- 5. Complaints Table
+CREATE TABLE IF NOT EXISTS complaints (
+    id VARCHAR(64) PRIMARY KEY,
+    case_id VARCHAR(64) REFERENCES cases(id),
+    complainant_name VARCHAR(200) NOT NULL,
+    complainant_father_name VARCHAR(200),
+    complainant_contact VARCHAR(100),
+    complainant_address TEXT,
+    complaint_text TEXT NOT NULL,
+    complaint_document_id VARCHAR(64) REFERENCES documents(id),
+    fir_document_id VARCHAR(64) REFERENCES documents(id),
+    status VARCHAR(50) DEFAULT 'PENDING',
+    io_remarks TEXT,
+    rejection_reason TEXT,
+    reviewed_by VARCHAR(64) REFERENCES users(id),
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    created_by VARCHAR(64) REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for Fast Case & Document Lookups
 CREATE INDEX IF NOT EXISTS idx_documents_case_id ON documents(case_id);
 CREATE INDEX IF NOT EXISTS idx_documents_sha256 ON documents(sha256_hash);
@@ -78,20 +99,23 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_case_id ON audit_logs(case_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_document_id ON audit_logs(document_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_case_id ON document_chunks(case_id);
--- Note: HNSW index is recommended for large datasets (CREATE INDEX ON document_chunks USING hnsw (embedding vector_cosine_ops);)
+CREATE INDEX IF NOT EXISTS idx_complaints_case_id ON complaints(case_id);
 
 -- Seed Initial System Actors (Judiciary, Police, Forensics)
 INSERT INTO users (id, badge_number, full_name, role, department)
 VALUES 
     ('usr-pol-042', 'POL-78219', 'Insp. Rajesh Sharma', 'INVESTIGATING_OFFICER', 'Special Crime Branch'),
     ('usr-for-108', 'FOR-33104', 'Dr. Anita Desai', 'FORENSIC_EXAMINER', 'Central Forensic Science Laboratory'),
-    ('usr-jud-007', 'JUD-99201', 'Hon. Magistrate S. Iyer', 'JUDICIAL_OFFICER', 'District & Sessions Court')
+    ('usr-jud-007', 'JUD-99201', 'Hon. Magistrate S. Iyer', 'JUDICIAL_OFFICER', 'District & Sessions Court'),
+    ('usr-reg-001', 'REG-55001', 'Sh. R.K. Mishra', 'REGISTRAR', 'Faridabad District Court'),
+    ('usr-law-001', 'LAW-11001', 'Adv. Priya Kapoor', 'LAWYER_PROSECUTION', 'State Prosecution'),
+    ('usr-law-002', 'LAW-22001', 'Adv. Vikram Singh', 'LAWYER_DEFENSE', 'Defense Counsel')
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed Sample Active Investigation Cases
 INSERT INTO cases (id, case_number, title, description, security_level, created_by)
 VALUES 
-    ('case-c001', 'FIR-2026-DL-0042', 'State vs. Syndicate Cyber Extortion', 'Cyber extortion and illegal data tampering investigation across financial channels.', 'TOP_SECRET', 'usr-pol-042'),
-    ('case-c002', 'FIR-2026-MH-1189', 'Operation Blue Horizon Cargo Inspection', 'Interception of suspicious cargo documents and customs clearance falsification.', 'RESTRICTED', 'usr-pol-042'),
-    ('case-c003', 'FIR-2026-KA-0502', 'Bengaluru Urban Land Registry Forgery', 'Alleged forged registry deeds and contested property deeds presented in civil trial.', 'CONFIDENTIAL', 'usr-for-108')
+    ('case-c001', 'FIR-2026-DL-0042', 'Faridabad-Court-1-Mr Sharma vs State', 'Cyber extortion and illegal data tampering investigation across financial channels.', 'TOP_SECRET', 'usr-pol-042'),
+    ('case-c002', 'FIR-2026-MH-1189', 'Faridabad-Court-2-Cargo Inspection', 'Interception of suspicious cargo documents and customs clearance falsification.', 'RESTRICTED', 'usr-pol-042'),
+    ('case-c003', 'FIR-2026-KA-0502', 'Faridabad-Court-3-Registry Forgery', 'Alleged forged registry deeds and contested property deeds presented in civil trial.', 'CONFIDENTIAL', 'usr-for-108')
 ON CONFLICT (id) DO NOTHING;

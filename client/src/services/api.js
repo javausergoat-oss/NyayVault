@@ -88,3 +88,22 @@ export function getDownloadUrl(documentId) {
 export async function semanticSearchCase(caseId, query) {
   return fetchApi(`/cases/${caseId}/search?q=${encodeURIComponent(query)}`);
 }
+
+// Complaint APIs
+export async function getComplaints(caseId) {
+  return fetchApi(`/cases/${caseId}/complaints`);
+}
+
+export async function createComplaint(caseId, data) {
+  return fetchApi(`/cases/${caseId}/complaints`, {
+    method: 'POST',
+    body: data,
+  });
+}
+
+export async function reviewComplaint(complaintId, data) {
+  return fetchApi(`/complaints/${complaintId}/review`, {
+    method: 'PATCH',
+    body: data,
+  });
+}

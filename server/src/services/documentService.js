@@ -39,6 +39,17 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
   const now = new Date().toISOString();
   const uploaderId = user?.id || 'usr-pol-042';
 
+  // Auto-assign document category based on uploader role
+  const ROLE_TO_CATEGORY = {
+    'INVESTIGATING_OFFICER': 'INVESTIGATION',
+    'FORENSIC_EXAMINER': 'INVESTIGATION',
+    'JUDICIAL_OFFICER': 'JUDICIAL',
+    'LAWYER_PROSECUTION': 'PROSECUTION',
+    'LAWYER_DEFENSE': 'DEFENSE',
+    'REGISTRAR': 'REGISTRAR',
+  };
+  const documentCategory = ROLE_TO_CATEGORY[user?.role] || 'GENERAL';
+
   // 5. Store file in MinIO Object Storage
   let uploadSuccess = false;
   try {
@@ -60,9 +71,9 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
     const insertDocSql = `
       INSERT INTO documents (
         id, case_id, filename, storage_key, mime_type, file_size, 
-        sha256_hash, status, uploaded_by, uploaded_at
+        sha256_hash, status, uploaded_by, uploaded_at, document_category
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *;
     `;
 
@@ -77,6 +88,7 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
       'uploaded',
       uploaderId,
       now,
+      documentCategory
     ]);
 
     const createdDoc = docRes.rows[0];
@@ -114,11 +126,11 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
 /**
  * Retrieves all documents for a case.
  */
-export async function getDocumentsByCase(caseId) {
+export async function getDocumentsByCase(caseId, user = null) {
   // Ensure case exists
   await getCaseById(caseId);
 
-  const sql = `
+  let sql = `
     SELECT 
       d.id,
       d.case_id,
@@ -129,6 +141,7 @@ export async function getDocumentsByCase(caseId) {
       d.sha256_hash,
       d.status,
       d.document_type,
+      d.document_category,
       d.classification_confidence,
       d.is_redacted,
       d.parent_document_id,
@@ -140,10 +153,16 @@ export async function getDocumentsByCase(caseId) {
     FROM documents d
     LEFT JOIN users u ON d.uploaded_by = u.id
     WHERE d.case_id = $1
-    ORDER BY d.uploaded_at DESC;
   `;
+  const params = [caseId];
+  if (user && user.role === 'INVESTIGATING_OFFICER') {
+    sql += ` AND d.uploaded_by = $2`;
+    params.push(user.id);
+  }
+  
+  sql += ` ORDER BY d.uploaded_at DESC;`;
 
-  const res = await query(sql, [caseId]);
+  const res = await query(sql, params);
   return res.rows;
 }
 
@@ -162,6 +181,7 @@ export async function getDocumentById(documentId) {
       d.sha256_hash,
       d.status,
       d.document_type,
+      d.document_category,
       d.classification_confidence,
       d.metadata,
       d.extracted_text,

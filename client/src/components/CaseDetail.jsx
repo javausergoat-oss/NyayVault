@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, FileText, Activity, Search, Shield, Lock, Bot } from 'lucide-react';
-import { getCaseDetails, getCaseDocuments, getCaseAuditTrail } from '../services/api';
+import { ArrowLeft, FileText, Activity, Search, Shield, Lock, Bot, ClipboardList } from 'lucide-react';
+import { getCaseDetails, getCaseDocuments, getCaseAuditTrail, getComplaints } from '../services/api';
 import DocumentUploader from './DocumentUploader';
 import DocumentTable from './DocumentTable';
 import AuditTrailView from './AuditTrailView';
 import SmartSearch from './SmartSearch';
 import CaseAssistant from './CaseAssistant';
+import ComplaintPanel from './ComplaintPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CaseDetail({ caseId, onBack, currentUser }) {
@@ -87,6 +88,16 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
         </button>
         <button 
           className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
+            activeTab === 'complaints' 
+              ? 'bg-white dark:bg-slate-800 text-pink-600 dark:text-pink-400 shadow-sm' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+          }`}
+          onClick={() => setActiveTab('complaints')}
+        >
+          <ClipboardList size={16} /> Complaints
+        </button>
+        <button 
+          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
             activeTab === 'search' 
               ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' 
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
@@ -127,7 +138,7 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
         >
           {activeTab === 'evidence' && (
             <div className="flex flex-col gap-6">
-              {currentUser && !['JUDICIAL_OFFICER', 'AUDITOR'].includes(currentUser.role) && (
+              {currentUser && !['JUDICIAL_OFFICER'].includes(currentUser.role) && (
                 <DocumentUploader caseId={caseId} onUploadComplete={loadData} />
               )}
               <DocumentTable documents={documents} onRefresh={loadData} />
@@ -136,6 +147,10 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
 
           {activeTab === 'search' && (
             <SmartSearch caseId={caseId} />
+          )}
+
+          {activeTab === 'complaints' && (
+            <ComplaintPanel caseId={caseId} currentUser={currentUser} />
           )}
 
           {activeTab === 'chat' && (

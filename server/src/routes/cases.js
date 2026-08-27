@@ -77,7 +77,7 @@ router.get('/:caseId', async (req, res, next) => {
  */
 router.get('/:caseId/documents', async (req, res, next) => {
   try {
-    const documents = await getDocumentsByCase(req.params.caseId);
+    const documents = await getDocumentsByCase(req.params.caseId, req.user);
     res.json({
       success: true,
       count: documents.length,
@@ -92,7 +92,7 @@ router.get('/:caseId/documents', async (req, res, next) => {
  * POST /api/cases/:caseId/documents
  * Securely uploads a document, computes SHA-256 hash, stores in MinIO, and creates DB + Audit record.
  */
-router.post('/:caseId/documents', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER']), uploadSingleEvidence, async (req, res, next) => {
+router.post('/:caseId/documents', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'JUDICIAL_OFFICER', 'REGISTRAR', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE']), uploadSingleEvidence, async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({
