@@ -4,6 +4,8 @@ import CaseList from './components/CaseList';
 import CaseDetail from './components/CaseDetail';
 import Login from './components/Login';
 
+import { Analytics } from '@vercel/analytics/react';
+
 export default function App() {
   const [activeCaseId, setActiveCaseId] = useState(null);
   
@@ -101,6 +103,7 @@ export default function App() {
           <CaseList onCaseSelect={setActiveCaseId} currentUser={currentUser} />
         )}
       </main>
+      <Analytics />
     </div>
   );
 }
