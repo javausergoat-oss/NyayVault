@@ -4,6 +4,7 @@ import { analyzeDocumentIntelligence, generateEmbedding } from '../services/aiSe
 import { logAuditEvent } from '../services/auditService.js';
 import { v4 as uuidv4 } from 'uuid';
 import { createRequire } from 'module';
+import Tesseract from 'tesseract.js';
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
 
@@ -47,6 +48,21 @@ async function extractTextFromStream(stream, mimeType) {
     return data.text;
   }
   
+  if (mimeType.startsWith('image/')) {
+    console.log(`[Worker] Detected Image. Booting Tesseract OCR engine...`);
+    // Read stream into buffer
+    const chunks = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+    
+    // Run Optical Character Recognition (OCR) on the image
+    const { data: { text } } = await Tesseract.recognize(buffer, 'eng');
+    console.log(`[Worker] Tesseract extracted ${text.length} characters from image.`);
+    return text;
+  }
+  
   if (mimeType.startsWith('text/')) {
     // Read plain text
     const chunks = [];
@@ -56,7 +72,7 @@ async function extractTextFromStream(stream, mimeType) {
     return Buffer.concat(chunks).toString('utf-8');
   }
 
-  return null; // Not extractable (e.g. image, video) in Phase 2
+  return null; // Not extractable (e.g. video) in Phase 2
 }
 
 /**
