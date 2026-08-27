@@ -86,16 +86,18 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
         >
           <FileText size={16} /> Evidence Vault
         </button>
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'complaints' 
-              ? 'bg-white dark:bg-slate-800 text-pink-600 dark:text-pink-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-          }`}
-          onClick={() => setActiveTab('complaints')}
-        >
-          <ClipboardList size={16} /> Complaints
-        </button>
+        {currentUser?.role === 'INVESTIGATING_OFFICER' && (
+          <button 
+            className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
+              activeTab === 'complaints' 
+                ? 'bg-white dark:bg-slate-800 text-pink-600 dark:text-pink-400 shadow-sm' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+            }`}
+            onClick={() => setActiveTab('complaints')}
+          >
+            <ClipboardList size={16} /> Complaints
+          </button>
+        )}
         <button 
           className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
             activeTab === 'search' 
