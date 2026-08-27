@@ -89,21 +89,19 @@ export default function DocumentTable({ documents, onRefresh }) {
     navigator.clipboard.writeText(text);
   };
 
-  if (!documents || documents.length === 0) {
-    return (
-      <div className="card p-12 text-center text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-border">
-        <FileText size={48} className="mx-auto mb-4 opacity-50" />
-        <p className="text-lg">No evidence uploaded yet.</p>
-      </div>
-    );
-  }
+  // No early return, always render the folder structure
+  
 
   return (
     <div className="space-y-4">
       {Object.entries(FOLDER_CONFIG).map(([category, config]) => {
-        const docs = groupedDocs[category];
-        if (!docs || docs.length === 0) return null;
+        const docs = groupedDocs[category] || [];
         
+        // Hide folders entirely for IOs if it's not their folder, since they can't access them anyway
+        if (localStorage.getItem('sih_active_user')?.includes('pol') && category !== 'INVESTIGATION') {
+           return null;
+        }
+
         const expanded = expandedFolders[category];
         
         return (
@@ -140,7 +138,13 @@ export default function DocumentTable({ documents, onRefresh }) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {docs.map(doc => {
+                        {docs.length === 0 ? (
+                          <tr>
+                            <td colSpan="5" className="p-8 text-center text-slate-500 italic">
+                              No documents uploaded in this folder yet.
+                            </td>
+                          </tr>
+                        ) : docs.map(doc => {
                           const isVerifying = verifying[doc.id];
                           const result = verifyResult[doc.id];
                           
