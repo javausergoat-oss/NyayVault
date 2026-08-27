@@ -129,7 +129,7 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
         >
           {activeTab === 'evidence' && (
             <div className="flex flex-col gap-6">
-              {currentUser && !['JUDICIAL_OFFICER'].includes(currentUser.role) && (
+              {currentUser && (
                 <DocumentUploader caseId={caseId} onUploadComplete={loadData} />
               )}
               <DocumentTable documents={documents} onRefresh={loadData} />
