@@ -10,7 +10,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import app from './app.js';
 import { initDatabase } from './config/db.js';
-import { initStorage } from './storage/minioClient.js';
+import { initStorage } from './storage/s3Client.js';
 
 const PORT = process.env.PORT || 5000;
 

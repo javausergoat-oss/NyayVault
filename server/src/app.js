@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { authenticateUser } from './middleware/authMiddleware.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { getDbStatus } from './config/db.js';
-import { getStorageStatus } from './storage/minioClient.js';
+import { getStorageStatus } from './storage/s3Client.js';
 
 import authRouter from './routes/auth.js';
 import casesRouter from './routes/cases.js';

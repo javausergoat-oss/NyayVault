@@ -92,7 +92,7 @@ router.get('/:caseId/documents', async (req, res, next) => {
  * POST /api/cases/:caseId/documents
  * Securely uploads a document, computes SHA-256 hash, stores in MinIO, and creates DB + Audit record.
  */
-router.post('/:caseId/documents', requireRole(['INVESTIGATOR', 'FORENSICS', 'ADMIN', 'SENIOR_OFFICER']), uploadSingleEvidence, async (req, res, next) => {
+router.post('/:caseId/documents', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER']), uploadSingleEvidence, async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({

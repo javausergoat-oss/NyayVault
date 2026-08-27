@@ -1,5 +1,5 @@
 import { query } from '../config/db.js';
-import { getObjectStream } from '../storage/minioClient.js';
+import { getObjectStream } from '../storage/s3Client.js';
 import { analyzeDocumentIntelligence, generateEmbedding } from '../services/aiService.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { v4 as uuidv4 } from 'uuid';

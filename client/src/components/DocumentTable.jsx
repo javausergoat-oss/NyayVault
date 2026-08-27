@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Download, ShieldCheck, ShieldAlert, FileText, Loader2, Copy, X, Maximize2 } from 'lucide-react';
 import { verifyDocument, getDownloadUrl } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import RedactionModal from './RedactionModal';
 
 export default function DocumentTable({ documents, onRefresh }) {
   const [verifying, setVerifying] = useState({});
@@ -9,6 +10,7 @@ export default function DocumentTable({ documents, onRefresh }) {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [blobUrl, setBlobUrl] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(null);
+  const [redactingDoc, setRedactingDoc] = useState(null);
 
   const openDocumentViewer = async (doc) => {
     setLoadingDoc(doc.id);
@@ -142,6 +144,14 @@ export default function DocumentTable({ documents, onRefresh }) {
                     {loadingDoc === doc.id ? <Loader2 size={14} className="animate-spin" /> : <Maximize2 size={14} />} 
                     View & Intel
                   </button>
+                  {!doc.is_redacted && (
+                    <button 
+                      onClick={() => setRedactingDoc(doc)}
+                      className="btn-outline text-xs px-3 py-2 rounded-lg font-semibold inline-flex items-center gap-2 shadow-sm border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/30"
+                    >
+                      <ShieldAlert size={14} /> Redact
+                    </button>
+                  )}
                 </td>
               </tr>
             );
@@ -231,6 +241,18 @@ export default function DocumentTable({ documents, onRefresh }) {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {redactingDoc && (
+          <RedactionModal 
+            doc={redactingDoc} 
+            onClose={() => setRedactingDoc(null)} 
+            onComplete={() => {
+              setRedactingDoc(null);
+              onRefresh();
+            }} 
+          />
         )}
       </AnimatePresence>
     </div>

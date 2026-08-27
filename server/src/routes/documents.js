@@ -3,8 +3,11 @@ import {
   getDocumentById,
   verifyDocumentIntegrity,
   downloadDocument,
+  applyRedactionsToDocument
 } from '../services/documentService.js';
 import { getDocumentAuditLogs } from '../services/auditService.js';
+import { suggestRedactions } from '../services/aiService.js';
+import { requireRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
 
@@ -83,5 +86,44 @@ router.get('/:documentId/audit-trail', async (req, res, next) => {
     next(err);
   }
 });
+
+/**
+ * POST /api/documents/:documentId/redact/suggest
+ * Uses AI to suggest PII redactions for the document's extracted text.
+ */
+router.post('/:documentId/redact/suggest', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER']), async (req, res, next) => {
+  try {
+    const document = await getDocumentById(req.params.documentId);
+    if (!document.extracted_text) {
+      return res.status(400).json({ error: 'No extracted text available for this document to redact.' });
+    }
+    const suggestions = await suggestRedactions(document.extracted_text);
+    res.json({ success: true, suggestions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/documents/:documentId/redact/apply
+ * Applies approved redactions, creates a new redacted document in MinIO and Postgres, and logs audit events.
+ */
+router.post('/:documentId/redact/apply', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER']), async (req, res, next) => {
+  try {
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const { redactions } = req.body;
+    
+    if (!Array.isArray(redactions) || redactions.length === 0) {
+      return res.status(400).json({ error: 'Redactions array is required.' });
+    }
+
+    const newDocument = await applyRedactionsToDocument(req.params.documentId, redactions, req.user, ipAddress);
+    
+    res.json({ success: true, document: newDocument });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 export default router;

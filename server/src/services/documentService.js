@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/db.js';
-import { uploadObject, getObjectStream, deleteObject } from '../storage/minioClient.js';
+import { uploadObject, getObjectStream, deleteObject } from '../storage/s3Client.js';
 import { calculateBufferHash, calculateStreamHash } from '../utils/hashUtils.js';
 import { validateEvidenceFile, sanitizeFilename } from '../utils/validator.js';
 import { logAuditEvent, AuditActions } from './auditService.js';
@@ -130,6 +130,8 @@ export async function getDocumentsByCase(caseId) {
       d.status,
       d.document_type,
       d.classification_confidence,
+      d.is_redacted,
+      d.parent_document_id,
       d.uploaded_at,
       u.id as uploader_id,
       u.full_name as uploaded_by_name,
@@ -163,6 +165,8 @@ export async function getDocumentById(documentId) {
       d.classification_confidence,
       d.metadata,
       d.extracted_text,
+      d.is_redacted,
+      d.parent_document_id,
       d.uploaded_at,
       u.id as uploader_id,
       u.full_name as uploaded_by_name,
@@ -268,3 +272,70 @@ export default {
   verifyDocumentIntegrity,
   downloadDocument,
 };
+export async function applyRedactionsToDocument(documentId, redactions, user, ipAddress = '127.0.0.1') {
+  // Fetch original
+  const originalDoc = await getDocumentById(documentId);
+  if (!originalDoc.extracted_text) throw new Error("No text to redact.");
+
+  // Apply redactions
+  let newText = originalDoc.extracted_text;
+  for (const red of redactions) {
+    // Escape string for regex
+    const regex = new RegExp(red.exact_text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+    newText = newText.replace(regex, '[REDACTED]');
+  }
+
+  // Create new text file buffer
+  const buffer = Buffer.from(newText, 'utf-8');
+  
+  // Hash
+  const hashSum = crypto.createHash('sha256');
+  hashSum.update(buffer);
+  const newHash = hashSum.digest('hex');
+
+  // New storage key
+  const newId = 'doc-redacted-' + crypto.randomUUID().slice(0, 8);
+  const newStorageKey = `cases/${originalDoc.case_id}/${newId}-redacted.txt`;
+
+  // Upload to MinIO
+  await uploadFile(newStorageKey, buffer, 'text/plain');
+
+  // Insert into DB
+  const sql = `
+    INSERT INTO documents 
+    (id, case_id, filename, storage_key, mime_type, file_size, sha256_hash, status, document_type, classification_confidence, extracted_text, uploaded_by, is_redacted, parent_document_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    RETURNING *;
+  `;
+  const values = [
+    newId, originalDoc.case_id,
+    'REDACTED_' + originalDoc.filename + '.txt',
+    newStorageKey, 'text/plain', buffer.length, newHash, 'processed',
+    originalDoc.document_type, originalDoc.classification_confidence,
+    newText, user.id, true, documentId
+  ];
+  
+  const res = await query(sql, values);
+  const newDocRecord = res.rows[0];
+
+  // Audit Logs
+  await logAuditEvent({
+    userId: user.id,
+    caseId: originalDoc.case_id,
+    documentId: documentId,
+    action: 'DOCUMENT_REDACTED',
+    ipAddress,
+    metadata: { generated_doc_id: newId, redaction_count: redactions.length }
+  });
+
+  await logAuditEvent({
+    userId: user.id,
+    caseId: originalDoc.case_id,
+    documentId: newId,
+    action: 'DOCUMENT_UPLOADED',
+    ipAddress,
+    metadata: { source: 'redaction_engine', parent_id: documentId }
+  });
+
+  return newDocRecord;
+}

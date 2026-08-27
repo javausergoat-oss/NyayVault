@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import app from '../src/app.js';
 import { initDatabase, query } from '../src/config/db.js';
-import { initStorage, objectExists } from '../src/storage/minioClient.js';
+import { initStorage, objectExists } from '../src/storage/s3Client.js';
 import { calculateBufferHash } from '../src/utils/hashUtils.js';
 
 let server;
