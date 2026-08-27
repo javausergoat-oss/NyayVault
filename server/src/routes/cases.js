@@ -16,7 +16,7 @@ const router = express.Router();
  */
 router.get('/', async (req, res, next) => {
   try {
-    const cases = await listCases();
+    const cases = await listCases(req.user);
     res.json({
       success: true,
       count: cases.length,

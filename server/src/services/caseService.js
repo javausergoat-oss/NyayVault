@@ -68,8 +68,8 @@ export async function createCase({
 /**
  * Retrieves all active investigation cases with document statistics.
  */
-export async function listCases() {
-  const sql = `
+export async function listCases(user = null) {
+  let sql = `
     SELECT 
       c.id,
       c.case_number,
@@ -85,11 +85,17 @@ export async function listCases() {
     FROM cases c
     LEFT JOIN users u ON c.created_by = u.id
     LEFT JOIN documents d ON c.id = d.case_id
-    GROUP BY c.id, u.id
-    ORDER BY c.created_at DESC;
   `;
+  
+  const params = [];
+  if (user && user.role === 'INVESTIGATING_OFFICER') {
+    sql += ` WHERE c.created_by = $1 OR EXISTS (SELECT 1 FROM documents d2 WHERE d2.case_id = c.id AND d2.uploaded_by = $1)`;
+    params.push(user.id);
+  }
+  
+  sql += ` GROUP BY c.id, u.id ORDER BY c.created_at DESC;`;
 
-  const res = await query(sql);
+  const res = await query(sql, params);
   return res.rows;
 }
 
