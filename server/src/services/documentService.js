@@ -149,15 +149,16 @@ export async function getDocumentsByCase(caseId, user = null) {
       u.id as uploader_id,
       u.full_name as uploaded_by_name,
       u.badge_number as uploaded_by_badge,
-      u.role as uploaded_by_role
+      u.role as uploaded_by_role,
+      u.department as uploaded_by_department,
+      u.department as uploaded_by_department
     FROM documents d
     LEFT JOIN users u ON d.uploaded_by = u.id
     WHERE d.case_id = $1
   `;
   const params = [caseId];
   if (user && user.role === 'INVESTIGATING_OFFICER') {
-    sql += ` AND d.uploaded_by = $2`;
-    params.push(user.id);
+    sql += ` AND d.document_category = 'INVESTIGATION'`;
   }
   
   sql += ` ORDER BY d.uploaded_at DESC;`;
@@ -192,6 +193,7 @@ export async function getDocumentById(documentId) {
       u.full_name as uploaded_by_name,
       u.badge_number as uploaded_by_badge,
       u.role as uploaded_by_role,
+      u.department as uploaded_by_department,
       c.case_number,
       c.title as case_title
     FROM documents d

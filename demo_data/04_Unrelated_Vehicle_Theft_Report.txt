@@ -1,0 +1,14 @@
+DELHI POLICE - CRIME BRANCH
+CASE STATUS REPORT: ORGANIZED VEHICLE THEFT SYNDICATE
+FIR: 219/2026 (South Delhi)
+
+Background:
+Over the past three months, 14 luxury SUVs (primarily White Fortuners) have been stolen from South Delhi using advanced relay-attack key fob cloners.
+
+Current Status:
+CCTV footage from the Saket Court complex perimeter on 15th August captured a White SUV acting suspiciously. 
+
+We intercepted a WhatsApp audio message from one of the stolen car brokers. In the message, the broker instructs the driver to drop the stolen vehicle at a warehouse in Gurugram and to call the "Boss" for payment confirmation. The number provided for the Boss in the audio transcript is exactly: +91-9876543210.
+
+Action Required:
+We are currently seeking authorization to wiretap +91-9876543210, as this appears to be the central node connecting the vehicle theft ring.

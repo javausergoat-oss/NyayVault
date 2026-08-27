@@ -157,7 +157,9 @@ export default function DocumentTable({ documents, onRefresh }) {
                                 <span className="font-semibold text-blue-600 dark:text-blue-400">
                                   {doc.filename}
                                 </span>
-                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">By {doc.uploaded_by_badge}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                  By {doc.uploaded_by_name} ({doc.uploaded_by_badge}) - {doc.uploaded_by_department}
+                                </div>
                               </td>
                               <td className="p-4">
                                 <div className="flex flex-col gap-2 items-start">
@@ -257,9 +259,6 @@ export default function DocumentTable({ documents, onRefresh }) {
               <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
                 {/* Left side: Document PDF Viewer */}
                 <div className="border-r border-border bg-slate-200 dark:bg-slate-950 flex flex-col h-full relative">
-                  <div className="absolute top-3 left-3 z-10 px-3 py-1.5 bg-black/60 text-white text-[10px] font-bold uppercase tracking-wider rounded-md backdrop-blur-md shadow-sm">
-                    Original Source File
-                  </div>
                   <iframe 
                     src={blobUrl}
                     className="w-full h-full border-none bg-white dark:bg-slate-800"
@@ -296,10 +295,10 @@ export default function DocumentTable({ documents, onRefresh }) {
                     ) : <p className="text-xs text-slate-500 italic">No specific metadata extracted.</p>}
                   </div>
 
-                  <div className="flex-1 flex flex-col min-h-0">
+                  <div className="mt-2">
                     <h3 className="text-sm font-bold mb-3 border-b border-border pb-2 text-slate-700 dark:text-slate-300">Raw OCR / Extracted Text</h3>
-                    <div className="bg-white dark:bg-slate-800/80 p-4 rounded-xl border border-border flex-1 overflow-y-auto shadow-inner">
-                      <pre className="text-xs font-mono whitespace-pre-wrap word-break text-slate-600 dark:text-slate-400 leading-relaxed">
+                    <div className="bg-white dark:bg-slate-800/80 p-4 rounded-xl border border-border shadow-inner">
+                      <pre className="text-xs font-mono whitespace-pre-wrap break-words text-slate-600 dark:text-slate-400 leading-relaxed">
                         {selectedDoc.extracted_text || 'No text extracted.'}
                       </pre>
                     </div>

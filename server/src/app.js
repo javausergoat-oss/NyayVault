@@ -40,7 +40,11 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Global User context middleware
+// Public Routes (No Auth Required)
+app.use('/api/dev', devRouter);
+app.use('/api/auth', authRouter);
+
+// Global User context middleware (Protects all routes below this line)
 app.use(authenticateUser);
 
 // System Health & Readiness API
@@ -55,14 +59,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRouter);
+// Protected API Routes
 app.use('/api/cases', casesRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api', complaintsRouter);
 app.use('/api/intelligence', intelligenceRouter);
-app.use('/api/dev', devRouter);
 
 // Centralized error handling
 app.use(errorHandler);

@@ -1,0 +1,15 @@
+GOVERNMENT OF HARYANA - POLICE DEPARTMENT
+INVESTIGATION REPORT - PRELIMINARY
+
+Case FIR No: 104/2026
+Date of Registration: 28-Aug-2026
+Investigating Officer: Inspector Rajesh Kumar (Badge: POL-78219)
+
+Details of Investigation:
+Following the complaint filed by the victim regarding a cyber fraud of 5 Lakhs, our cyber cell tracked the IP address of the malicious application "QuickWealth". The IP address (192.168.45.12) resolved to a local proxy server in Delhi.
+
+During the raid at the proxy location, we apprehended a suspect named "Vikram Singh". Upon confiscating his mobile device, we found multiple burner SIM cards. Call detail records (CDR) show frequent communications with a mastermind using the phone number: +91-9876543210.
+
+The suspect's laptop is currently being sent to the Forensic Examiner (Dr. Anita Desai) for deep disk imaging. 
+
+Note: The suspect has denied all allegations and claims his identity was stolen.

@@ -36,6 +36,7 @@ export async function analyzeDocumentIntelligence(text, filename) {
   const systemPrompt = `
 You are an expert law-enforcement and legal document classifier.
 Your job is to analyze the provided document text and classify it into one of the following categories:
+- Complaint
 - FIR
 - Witness Statement
 - Investigation Report
