@@ -28,6 +28,7 @@ export default function Login({ onLoginSuccess }) {
 
       localStorage.setItem('sih_token', data.token);
       localStorage.setItem('sih_active_user', data.user.id);
+      localStorage.setItem('sih_active_role', data.user.role);
       
       onLoginSuccess(data.user, data.token);
     } catch (err) {

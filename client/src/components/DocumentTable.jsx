@@ -98,7 +98,10 @@ export default function DocumentTable({ documents, onRefresh }) {
         const docs = groupedDocs[category] || [];
         
         // Hide folders entirely for IOs if it's not their folder, since they can't access them anyway
-        if (localStorage.getItem('sih_active_user')?.includes('pol') && category !== 'INVESTIGATION') {
+        const userRole = localStorage.getItem('sih_active_role');
+        const isPolice = userRole === 'INVESTIGATING_OFFICER' || localStorage.getItem('sih_active_user')?.includes('pol');
+        
+        if (isPolice && category !== 'INVESTIGATION') {
            return null;
         }
 
