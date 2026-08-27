@@ -4,10 +4,12 @@ import CaseList from './components/CaseList';
 import CaseDetail from './components/CaseDetail';
 import Login from './components/Login';
 
+import CrossCaseRadar from './components/CrossCaseRadar';
 import { Analytics } from '@vercel/analytics/react';
 
 export default function App() {
   const [activeCaseId, setActiveCaseId] = useState(null);
+  const [activeView, setActiveView] = useState('cases'); // 'cases' or 'radar'
   
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -90,10 +92,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <Navbar theme={theme} toggleTheme={toggleTheme} onCaseSelect={setActiveCaseId} onLogout={handleLogout} currentUser={currentUser} />
+      <Navbar 
+        theme={theme} 
+        toggleTheme={toggleTheme} 
+        onCaseSelect={(id) => { setActiveCaseId(id); setActiveView('cases'); }} 
+        onLogout={handleLogout} 
+        currentUser={currentUser} 
+        activeView={activeView}
+        onViewChange={(v) => { setActiveView(v); setActiveCaseId(null); }}
+      />
       
       <main className="container mx-auto px-4 py-8">
-        {activeCaseId ? (
+        {activeView === 'radar' ? (
+          <CrossCaseRadar />
+        ) : activeCaseId ? (
           <CaseDetail 
             caseId={activeCaseId} 
             onBack={() => setActiveCaseId(null)} 

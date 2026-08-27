@@ -1,7 +1,7 @@
 import { Shield, LogOut, Sun, Moon, UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, currentUser }) {
+export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, currentUser, activeView, onViewChange }) {
   return (
     <motion.nav 
       initial={{ y: -100 }}
@@ -27,6 +27,15 @@ export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, cur
         </div>
 
         <div className="flex items-center gap-4">
+          {currentUser?.role === 'INVESTIGATING_OFFICER' && (
+            <button
+              onClick={() => onViewChange(activeView === 'radar' ? 'cases' : 'radar')}
+              className={`text-sm font-bold px-4 py-2 rounded-xl transition-colors border ${activeView === 'radar' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border-transparent dark:border-slate-700'}`}
+            >
+              Cross-Case Radar
+            </button>
+          )}
+          
           <button 
             onClick={toggleTheme} 
             className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700"

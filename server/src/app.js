@@ -13,6 +13,7 @@ import documentsRouter from './routes/documents.js';
 import auditRouter from './routes/audit.js';
 import complaintsRouter from './routes/complaints.js';
 import devRouter from './routes/dev.js';
+import intelligenceRouter from './routes/intelligence.js';
 
 const app = express();
 
@@ -58,8 +59,9 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/cases', casesRouter);
 app.use('/api/documents', documentsRouter);
-app.use('/api', complaintsRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api', complaintsRouter);
+app.use('/api/intelligence', intelligenceRouter);
 app.use('/api/dev', devRouter);
 
 // Centralized error handling
