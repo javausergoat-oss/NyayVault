@@ -117,7 +117,8 @@ export default function Login({ onLoginSuccess }) {
         <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 text-center">
           <p className="text-xs text-slate-500 dark:text-slate-500">
             For prototype testing, use password: <strong className="text-slate-700 dark:text-slate-300">sih2026</strong><br />
-            (POL-78219, FOR-33104, JUD-99201, REG-55001, LAW-11001, LAW-22001)
+            <strong>Primary:</strong> POL-1 (IO), JUD-1 (Judge), ADV-1 (Defense), ADV-2 (Prosecution), REG-1 (Registrar)<br />
+            <span className="text-[11px] text-slate-400">Also supports: POL-78219, JUD-99201, FOR-33104, REG-55001</span>
           </p>
         </div>
       </motion.div>

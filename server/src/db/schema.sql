@@ -116,7 +116,17 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_document_id ON audit_logs(document_id)
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_case_id ON document_chunks(case_id);
 
--- Seed Initial System Actors (Judiciary, Police, Forensics)
+-- Case Assignments for RBAC access control
+CREATE TABLE IF NOT EXISTS case_assignments (
+    id SERIAL PRIMARY KEY,
+    case_id VARCHAR(64) REFERENCES cases(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    assigned_role VARCHAR(50),
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(case_id, user_id)
+);
+
+-- Seed Initial System Actors (Judiciary, Police, Forensics, Lawyers, Registrar)
 INSERT INTO users (id, badge_number, full_name, role, department)
 VALUES 
     ('usr-pol-042', 'POL-78219', 'Insp. Rajesh Sharma', 'INVESTIGATING_OFFICER', 'Special Crime Branch'),
@@ -124,13 +134,28 @@ VALUES
     ('usr-jud-007', 'JUD-99201', 'Hon. Magistrate S. Iyer', 'JUDICIAL_OFFICER', 'District & Sessions Court'),
     ('usr-reg-001', 'REG-55001', 'Sh. R.K. Mishra', 'REGISTRAR', 'Faridabad District Court'),
     ('usr-law-001', 'LAW-11001', 'Adv. Priya Kapoor', 'LAWYER_PROSECUTION', 'State Prosecution'),
-    ('usr-law-002', 'LAW-22001', 'Adv. Vikram Singh', 'LAWYER_DEFENSE', 'Defense Counsel')
+    ('usr-law-002', 'LAW-22001', 'Adv. Vikram Singh', 'LAWYER_DEFENSE', 'Defense Counsel'),
+    ('usr-pol-001', 'POL-1', 'Insp. Krishna Chhabra', 'INVESTIGATING_OFFICER', 'Cyber Crime Branch'),
+    ('usr-jud-001', 'JUD-1', 'Hon. Justice Vatsal Singh', 'JUDICIAL_OFFICER', 'Faridabad District Court'),
+    ('usr-1787866191848', 'ADV-1', 'Adv. Vikram Singh', 'LAWYER_DEFENSE', 'Faridabad District Court'),
+    ('usr-1787866298750', 'ADV-2', 'Adv. Priya Kapoor', 'LAWYER_PROSECUTION', 'State Prosecutor'),
+    ('usr-1787866796708', 'REG-1', 'Registrar Amit Kumar', 'REGISTRAR', 'Faridabad Court Registry')
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed Sample Active Investigation Cases
-INSERT INTO cases (id, case_number, title, description, security_level, created_by)
+INSERT INTO cases (id, case_number, title, description, security_level, created_by, status)
 VALUES 
-    ('case-c001', 'FIR-2026-DL-0042', 'Faridabad-Court-1-Mr Sharma vs State', 'Cyber extortion and illegal data tampering investigation across financial channels.', 'TOP_SECRET', 'usr-pol-042'),
-    ('case-c002', 'FIR-2026-MH-1189', 'Faridabad-Court-2-Cargo Inspection', 'Interception of suspicious cargo documents and customs clearance falsification.', 'RESTRICTED', 'usr-pol-042'),
-    ('case-c003', 'FIR-2026-KA-0502', 'Faridabad-Court-3-Registry Forgery', 'Alleged forged registry deeds and contested property deeds presented in civil trial.', 'CONFIDENTIAL', 'usr-for-108')
+    ('case-c001', 'FIR-2026-DL-0042', 'Faridabad-Court-1-Mr Sharma vs State', 'Cyber extortion and illegal data tampering investigation across financial channels.', 'TOP_SECRET', 'usr-pol-042', 'INVESTIGATION'),
+    ('case-c002', 'FIR-2026-MH-1189', 'Faridabad-Court-2-Cargo Inspection', 'Interception of suspicious cargo documents and customs clearance falsification.', 'RESTRICTED', 'usr-pol-042', 'INVESTIGATION'),
+    ('case-c003', 'FIR-2026-KA-0502', 'Faridabad-Court-3-Registry Forgery', 'Alleged forged registry deeds and contested property deeds presented in civil trial.', 'CONFIDENTIAL', 'usr-for-108', 'INVESTIGATION'),
+    ('case-56fd49f6', 'CASE-1', 'STATE VS HARDIK', 'State vs Hardik cyber extortion & illegal tampering case.', 'RESTRICTED', 'usr-pol-001', 'INVESTIGATION')
 ON CONFLICT (id) DO NOTHING;
+
+-- Seed Case Assignments for STATE VS HARDIK
+INSERT INTO case_assignments (case_id, user_id, assigned_role)
+VALUES 
+    ('case-56fd49f6', 'usr-jud-001', 'PRESIDING_JUDGE'),
+    ('case-56fd49f6', 'usr-1787866191848', 'DEFENSE_COUNSEL'),
+    ('case-56fd49f6', 'usr-1787866298750', 'PROSECUTOR'),
+    ('case-56fd49f6', 'usr-1787866796708', 'COURT_REGISTRAR')
+ON CONFLICT (case_id, user_id) DO NOTHING;
