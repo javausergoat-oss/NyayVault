@@ -111,3 +111,14 @@ export async function reviewComplaint(complaintId, data) {
 export async function generateCaseSummary(caseId) {
   return fetchApi(`/cases/${caseId}/summary`, { method: 'POST' });
 }
+
+export async function findContradictions(caseId) {
+  return fetchApi(`/cases/${caseId}/contradictions`);
+}
+
+export async function updateCaseStatus(caseId, status) {
+  return fetchApi(`/cases/${caseId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status })
+  });
+}

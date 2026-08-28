@@ -248,10 +248,60 @@ ${contextText}
   }
 }
 
+export async function findContradictions(documentsWithText) {
+  if (!documentsWithText || documentsWithText.length < 2) {
+    return []; // Can't find contradictions with less than 2 docs
+  }
+
+  const caseContext = documentsWithText.map(d => 
+    `--- DOCUMENT: ${d.filename} (${d.document_category}) ---\n${d.extracted_text || 'No text extracted'}`
+  ).join('\n\n');
+
+  const systemPrompt = `You are a forensic legal AI assistant. Your job is to analyze multiple documents from a single case and identify any factual, temporal, or logical contradictions between them.
+For example: If the FIR states the incident occurred at 10 PM, but the Medical Report says the injuries were examined at 9 PM the same day, that is a temporal contradiction.
+If there are no clear contradictions, return an empty JSON array.
+
+Analyze the following documents:
+${caseContext}
+
+OUTPUT INSTRUCTIONS:
+Return a strict JSON array of objects. Do not include markdown code blocks like \`\`\`json. Return ONLY the JSON array.
+Each object must have these exact keys:
+- "description": A clear explanation of the contradiction.
+- "doc1": The filename of the first document involved.
+- "doc2": The filename of the second document involved.
+- "severity": Either "HIGH", "MEDIUM", or "LOW".`;
+
+  try {
+    const completion = await getOpenAIClient().chat.completions.create({
+      model: getLlmModel(),
+      max_tokens: 1500,
+      messages: [{ role: 'system', content: systemPrompt }],
+    });
+    
+    let content = completion.choices[0].message.content.trim();
+    if (content.startsWith('\`\`\`json')) {
+      content = content.replace(/^\`\`\`json/m, '').replace(/\`\`\`$/m, '').trim();
+    }
+    
+    try {
+      const parsed = JSON.parse(content);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error("AI returned malformed JSON for contradictions:", content);
+      return [];
+    }
+  } catch (err) {
+    console.error("Failed to find contradictions:", err.message);
+    return [];
+  }
+}
+
 export default {
   analyzeDocumentIntelligence,
   generateEmbedding,
   generateRagResponse,
   suggestRedactions,
-  generateCaseSummary
+  generateCaseSummary,
+  findContradictions
 };

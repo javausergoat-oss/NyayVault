@@ -137,8 +137,29 @@ export async function getCaseById(caseId) {
   return res.rows[0];
 }
 
+export async function updateCaseStatus(caseId, status, user, ipAddress) {
+  const sql = `UPDATE cases SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`;
+  const res = await query(sql, [status, caseId]);
+  
+  if (res.rows.length === 0) {
+    throw new Error('Case not found');
+  }
+
+  // Log the status change
+  await logAuditEvent({
+    userId: user.id,
+    caseId: caseId,
+    action: 'CASE_STATUS_UPDATED',
+    ipAddress,
+    metadata: { new_status: status }
+  });
+
+  return res.rows[0];
+}
+
 export default {
   createCase,
   listCases,
   getCaseById,
+  updateCaseStatus
 };
