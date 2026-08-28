@@ -70,6 +70,16 @@ async function runE2ETests() {
     await new Promise((resolve) => setTimeout(resolve, 300));
     console.log(`Test server running at http://localhost:${PORT}\n`);
 
+    const loginRes = await fetch(`${BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ badge_number: 'POL-78219', password: 'sih2026' }),
+    }).then((r) => r.json());
+    if (!loginRes.token) {
+      throw new Error(`E2E login failed: ${JSON.stringify(loginRes)}`);
+    }
+    const authHeaders = { Authorization: `Bearer ${loginRes.token}` };
+
     // ------------------------------------------------------------------------
     // TEST 1: Health & Readiness API
     // ------------------------------------------------------------------------
@@ -88,7 +98,7 @@ async function runE2ETests() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-id': 'usr-pol-042',
+        ...authHeaders,
       },
       body: JSON.stringify({
         caseNumber: caseNum,
@@ -119,7 +129,7 @@ async function runE2ETests() {
       'FIR_Initial_Statement.pdf',
       sampleContent,
       'application/pdf',
-      { 'x-user-id': 'usr-pol-042' }
+      authHeaders
     );
 
     if (uploadRes.status === 201 && uploadRes.data?.document?.id) {
@@ -168,7 +178,7 @@ async function runE2ETests() {
     // ------------------------------------------------------------------------
     // TEST 7: Live Cryptographic Integrity Verification Endpoint
     // ------------------------------------------------------------------------
-    const verifyRes = await fetch(`${BASE_URL}/documents/${docRecord.id}/verify`).then((r) =>
+    const verifyRes = await fetch(`${BASE_URL}/documents/${docRecord.id}/verify`, { headers: authHeaders }).then((r) =>
       r.json()
     );
     if (verifyRes.success && verifyRes.verification?.isTamperFree === true) {
@@ -181,7 +191,7 @@ async function runE2ETests() {
     // TEST 8: Authorized Download & Exact Byte-for-Byte Check
     // ------------------------------------------------------------------------
     const downloadRes = await fetch(`${BASE_URL}/documents/${docRecord.id}/download`, {
-      headers: { 'x-user-id': 'usr-jud-007' },
+      headers: authHeaders,
     });
     const downloadedBuffer = Buffer.from(await downloadRes.arrayBuffer());
     const downloadedSha256 = calculateBufferHash(downloadedBuffer);
@@ -213,7 +223,8 @@ async function runE2ETests() {
       `${BASE_URL}/cases/${testCaseId}/documents`,
       'empty.pdf',
       emptyBuffer,
-      'application/pdf'
+      'application/pdf',
+      authHeaders
     );
     if (emptyUploadRes.status === 400) {
       logPass('Error Handling: Empty file correctly rejected with 400 Bad Request.');
@@ -225,7 +236,8 @@ async function runE2ETests() {
       `${BASE_URL}/cases/${testCaseId}/documents`,
       'malicious_payload.exe',
       Buffer.from('MZ...executable binary content'),
-      'application/x-msdownload'
+      'application/x-msdownload',
+      authHeaders
     );
     if (invalidExtRes.status === 400) {
       logPass('Error Handling: Unsupported file extension correctly rejected with 400 Bad Request.');

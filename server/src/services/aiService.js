@@ -1,16 +1,48 @@
 import { OpenAI } from 'openai';
 
+const GOOGLE_AI_STUDIO_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+export function getAiConfig() {
+  const googleApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (googleApiKey) {
+    return {
+      provider: 'google-ai-studio',
+      apiKey: googleApiKey,
+      baseURL: GOOGLE_AI_STUDIO_BASE_URL,
+      chatModel: process.env.LLM_MODEL || 'gemini-3.6-flash',
+      embeddingModel: process.env.EMBEDDING_MODEL || 'gemini-embedding-001',
+    };
+  }
+
+  if (process.env.OPENROUTER_API_KEY) {
+    return {
+      provider: 'openrouter',
+      apiKey: process.env.OPENROUTER_API_KEY,
+      baseURL: OPENROUTER_BASE_URL,
+      chatModel: process.env.LLM_MODEL || 'google/gemini-2.5-flash',
+      embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
+    };
+  }
+
+  return null;
+}
+
 function getOpenAIClient() {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return null;
+  const config = getAiConfig();
+  if (!config) return null;
   return new OpenAI({
-    baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: apiKey,
+    baseURL: config.baseURL,
+    apiKey: config.apiKey,
   });
 }
 
 function getLlmModel() {
-  return process.env.LLM_MODEL || 'google/gemini-2.5-flash';
+  return getAiConfig()?.chatModel || 'google/gemini-2.5-flash';
+}
+
+function getEmbeddingModel() {
+  return getAiConfig()?.embeddingModel || 'text-embedding-3-small';
 }
 
 /**
@@ -21,7 +53,7 @@ function getLlmModel() {
  */
 export async function analyzeDocumentIntelligence(text, filename) {
   if (!getOpenAIClient()) {
-    console.warn("OPENROUTER_API_KEY not configured. Skipping AI analysis.");
+    console.warn("AI API key not configured. Skipping AI analysis.");
     return {
       document_type: 'UNKNOWN_NO_AI',
       confidence: 0.0,
@@ -99,14 +131,15 @@ Do not wrap the JSON in markdown code blocks. Just output raw JSON.
  */
 export async function generateEmbedding(text) {
   if (!getOpenAIClient()) {
-    console.warn("OPENROUTER_API_KEY not configured. Skipping embedding generation.");
+    console.warn("AI API key not configured. Skipping embedding generation.");
     return Array(1536).fill(0.1); 
   }
 
   try {
     const response = await getOpenAIClient().embeddings.create({
-      model: 'text-embedding-3-small',
+      model: getEmbeddingModel(),
       input: text,
+      dimensions: 1536,
       encoding_format: 'float'
     });
     return response.data[0].embedding;
@@ -118,7 +151,7 @@ export async function generateEmbedding(text) {
 
 export async function generateRagResponse(userMessage, contextChunks) {
   if (!getOpenAIClient()) {
-    return "AI Assistant is currently offline. Please configure OPENROUTER_API_KEY.";
+    return "AI Assistant is currently offline. Please configure GEMINI_API_KEY or OPENROUTER_API_KEY.";
   }
 
   const contextText = contextChunks.map((chunk, i) => 
@@ -156,7 +189,7 @@ ${contextText}
  */
 export async function suggestRedactions(text) {
   if (!getOpenAIClient()) {
-    throw new Error("AI Assistant is currently offline. Please configure OPENROUTER_API_KEY.");
+    throw new Error("AI Assistant is currently offline. Please configure GEMINI_API_KEY or OPENROUTER_API_KEY.");
   }
 
   const truncatedText = text.substring(0, 15000);
@@ -211,7 +244,7 @@ Do not wrap the JSON in markdown code blocks. Just output raw JSON.
 
 export async function generateCaseSummary(caseTitle, caseNumber, documentsWithText) {
   if (!getOpenAIClient()) {
-    throw new Error("AI service is offline. Missing OPENROUTER_API_KEY.");
+    throw new Error("AI service is offline. Missing GEMINI_API_KEY or OPENROUTER_API_KEY.");
   }
 
   const contextText = documentsWithText.map((doc, i) => 
@@ -303,5 +336,6 @@ export default {
   generateRagResponse,
   suggestRedactions,
   generateCaseSummary,
-  findContradictions
+  findContradictions,
+  getAiConfig
 };
