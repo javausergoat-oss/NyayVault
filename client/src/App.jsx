@@ -68,6 +68,7 @@ export default function App() {
   const handleLoginSuccess = (user, token) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
+    window.history.replaceState({ view: 'cases' }, '', '/');
   };
 
   const handleLogout = () => {
@@ -153,13 +154,9 @@ export default function App() {
           <CaseDetail 
             caseId={activeCaseId} 
             onBack={() => {
-              if (window.history.state !== null) {
-                window.history.back();
-              } else {
-                setActiveCaseId(null);
-                setActiveView('cases');
-                window.history.replaceState({ view: 'cases' }, '', '/');
-              }
+              setActiveCaseId(null);
+              setActiveView('cases');
+              window.history.pushState({ view: 'cases' }, '', '/');
             }} 
             currentUser={currentUser}
           />
