@@ -66,14 +66,22 @@ npm install
 Create a `.env` file in the `server` directory:
 ```env
 PORT=5000
-DATABASE_URL=postgresql://sih_admin:password@localhost:5432/sih_db
-MINIO_ENDPOINT=localhost
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=admin
-MINIO_SECRET_KEY=password
+DATABASE_URL=postgresql://sih_admin:sih_secure_password_2026@localhost:5432/sih26190_evidence_db
+AWS_S3_ENDPOINT=http://localhost:9000
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=minioadmin
+AWS_SECRET_ACCESS_KEY=minioadminpassword
+AWS_S3_BUCKET_NAME=sih26190-evidence
 JWT_SECRET=your_super_secret_jwt_key
-OPENROUTER_API_KEY=your_ai_api_key
+GEMINI_API_KEY=your_google_ai_studio_api_key
+LLM_MODEL=gemini-3.6-flash
+EMBEDDING_MODEL=gemini-embedding-001
 ```
+For Docker Compose, keep the same `GEMINI_API_KEY`, `LLM_MODEL`, and
+`EMBEDDING_MODEL` values in `server/.env`; the backend container reads that
+ignored file at startup while still using the Compose PostgreSQL and MinIO
+service URLs. OpenRouter is also supported with `OPENROUTER_API_KEY`.
+
 Start the backend:
 ```bash
 # Uses PGlite automatically if PostgreSQL is not running!

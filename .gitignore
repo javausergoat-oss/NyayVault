@@ -20,6 +20,8 @@ logs/
 data/
 minio_data/
 storage/
+!server/src/storage/
+!server/src/storage/**
 pgdata/
 
 # OS Files

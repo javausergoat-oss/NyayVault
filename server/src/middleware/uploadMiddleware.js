@@ -28,7 +28,9 @@ export const uploadSingleEvidence = multer({
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`Invalid file type: ${file.mimetype}. Allowed types: PDF, Images, Text, Word, MP4, Audio.`));
+      const error = new Error(`Invalid file type: ${file.mimetype}. Allowed types: PDF, Images, Text, Word, MP4, Audio.`);
+      error.statusCode = 400;
+      cb(error);
     }
   }
 }).single('file');
