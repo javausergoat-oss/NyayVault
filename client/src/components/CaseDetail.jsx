@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, FileText, Activity, Search, Shield, Lock, Bot, ClipboardList } from 'lucide-react';
+import { ArrowLeft, FileText, Activity, Search, Shield, Lock, Bot, ClipboardList, Clock, FileBarChart } from 'lucide-react';
 import { getCaseDetails, getCaseDocuments, getCaseAuditTrail, getComplaints } from '../services/api';
 import DocumentUploader from './DocumentUploader';
 import DocumentTable from './DocumentTable';
 import AuditTrailView from './AuditTrailView';
 import SmartSearch from './SmartSearch';
 import CaseAssistant from './CaseAssistant';
+import CaseTimeline from './CaseTimeline';
+import CaseSummary from './CaseSummary';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -109,6 +111,26 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
         </button>
         <button 
           className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
+            activeTab === 'timeline' 
+              ? 'bg-white dark:bg-slate-800 text-pink-600 dark:text-pink-400 shadow-sm' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+          }`}
+          onClick={() => setActiveTab('timeline')}
+        >
+          <Clock size={16} /> Timeline
+        </button>
+        <button 
+          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
+            activeTab === 'summary' 
+              ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 shadow-sm' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+          }`}
+          onClick={() => setActiveTab('summary')}
+        >
+          <FileBarChart size={16} /> Summary
+        </button>
+        <button 
+          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
             activeTab === 'audit' 
               ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' 
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
@@ -144,6 +166,14 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
 
           {activeTab === 'chat' && (
             <CaseAssistant caseId={caseId} />
+          )}
+
+          {activeTab === 'timeline' && (
+            <CaseTimeline documents={documents} />
+          )}
+
+          {activeTab === 'summary' && (
+            <CaseSummary caseId={caseId} caseDetails={caseDetails} />
           )}
 
           {activeTab === 'audit' && (

@@ -209,9 +209,49 @@ Do not wrap the JSON in markdown code blocks. Just output raw JSON.
   }
 }
 
+export async function generateCaseSummary(caseTitle, caseNumber, documentsWithText) {
+  if (!getOpenAIClient()) {
+    throw new Error("AI service is offline. Missing OPENROUTER_API_KEY.");
+  }
+
+  const contextText = documentsWithText.map((doc, i) => 
+    `[Document ${i + 1} - ${doc.document_category} - ${doc.filename} - Uploaded by ${doc.uploaded_by_name} (${doc.uploaded_by_role})]:\n${doc.extracted_text ? doc.extracted_text.substring(0, 5000) : 'No text content extracted.'}`
+  ).join('\n\n---\n\n').substring(0, 30000); // 30k char limit
+
+  const systemPrompt = `You are a highly capable AI Assistant for law enforcement and legal professionals (Smart India Hackathon Evidence Vault).
+Your task is to generate a comprehensive, executive 1-page Case Summary Report based on the provided evidence documents.
+Format the output in professional Markdown.
+
+Case Details:
+- Title: ${caseTitle}
+- Case Number: ${caseNumber}
+
+The report MUST contain these exact sections:
+1. **Case Overview**: High-level summary of the crime/incident.
+2. **Chronological Timeline**: Bullet points of key events extracted from the evidence.
+3. **Key Evidence Analysis**: Summarize the most critical documents (e.g., Forensics, FIR).
+4. **Current Status & Pending Actions**: Based on the latest documents.
+
+Evidence Context:
+${contextText}
+`;
+
+  try {
+    const completion = await getOpenAIClient().chat.completions.create({
+      model: getLlmModel(),
+      max_tokens: 3000,
+      messages: [{ role: 'system', content: systemPrompt }],
+    });
+    return completion.choices[0].message.content;
+  } catch (err) {
+    throw new Error("Failed to generate Case Summary: " + err.message);
+  }
+}
+
 export default {
   analyzeDocumentIntelligence,
   generateEmbedding,
   generateRagResponse,
-  suggestRedactions
+  suggestRedactions,
+  generateCaseSummary
 };

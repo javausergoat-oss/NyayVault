@@ -107,3 +107,7 @@ export async function reviewComplaint(complaintId, data) {
     body: data,
   });
 }
+
+export async function generateCaseSummary(caseId) {
+  return fetchApi(`/cases/${caseId}/summary`, { method: 'POST' });
+}

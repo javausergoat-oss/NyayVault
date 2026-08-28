@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(64) PRIMARY KEY,
     badge_number VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL DEFAULT '$2b$10$PHXbeifecX92LfHvGsYBPuPZd9KK64fPqWqQ0E1hGVLObljQMx2cW',
+    email VARCHAR(255),
     full_name VARCHAR(120) NOT NULL,
     role VARCHAR(50) NOT NULL,
     department VARCHAR(100) NOT NULL,
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '$2b$10$PHXbeifecX92LfHvGsYBPuPZd9KK64fPqWqQ0E1hGVLObljQMx2cW';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
 
 -- 2. Cases Table
 CREATE TABLE IF NOT EXISTS cases (
@@ -75,31 +77,44 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- 5. Complaints Table
 CREATE TABLE IF NOT EXISTS complaints (
     id VARCHAR(64) PRIMARY KEY,
-    case_id VARCHAR(64) REFERENCES cases(id),
+    case_id VARCHAR(64) REFERENCES cases(id) ON DELETE CASCADE,
     complainant_name VARCHAR(200) NOT NULL,
     complainant_father_name VARCHAR(200),
     complainant_contact VARCHAR(100),
     complainant_address TEXT,
     complaint_text TEXT NOT NULL,
-    complaint_document_id VARCHAR(64) REFERENCES documents(id),
-    fir_document_id VARCHAR(64) REFERENCES documents(id),
+    complaint_document_id VARCHAR(64) REFERENCES documents(id) ON DELETE SET NULL,
+    fir_document_id VARCHAR(64) REFERENCES documents(id) ON DELETE SET NULL,
     status VARCHAR(50) DEFAULT 'PENDING',
     io_remarks TEXT,
     rejection_reason TEXT,
-    reviewed_by VARCHAR(64) REFERENCES users(id),
+    reviewed_by VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
     reviewed_at TIMESTAMP WITH TIME ZONE,
-    created_by VARCHAR(64) REFERENCES users(id),
+    created_by VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes for Fast Case & Document Lookups
-CREATE INDEX IF NOT EXISTS idx_documents_case_id ON documents(case_id);
+CREATE TABLE IF NOT EXISTS case_assignments (
+    id SERIAL PRIMARY KEY,
+    case_id VARCHAR(64) REFERENCES cases(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE CASCADE,
+    assigned_role VARCHAR(50),
+    assigned_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(case_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_badge ON users(badge_number);
+CREATE INDEX IF NOT EXISTS idx_cases_created_by ON cases(created_by);
+CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_document ON document_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_audit_case ON audit_logs(case_id);
+CREATE INDEX IF NOT EXISTS idx_complaints_case_id ON complaints(case_id);
+CREATE INDEX IF NOT EXISTS idx_case_assignments_user ON case_assignments(user_id);
 CREATE INDEX IF NOT EXISTS idx_documents_sha256 ON documents(sha256_hash);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_case_id ON audit_logs(case_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_document_id ON audit_logs(document_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_document_chunks_case_id ON document_chunks(case_id);
-CREATE INDEX IF NOT EXISTS idx_complaints_case_id ON complaints(case_id);
 
 -- Seed Initial System Actors (Judiciary, Police, Forensics)
 INSERT INTO users (id, badge_number, full_name, role, department)

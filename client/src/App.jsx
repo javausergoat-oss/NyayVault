@@ -78,6 +78,50 @@ export default function App() {
     setActiveCaseId(null);
   };
 
+  // Handle History API for browser back button
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (event.state?.view === 'case' && event.state?.caseId) {
+        setActiveCaseId(event.state.caseId);
+        setActiveView('cases');
+      } else if (event.state?.view === 'radar') {
+        setActiveView('radar');
+        setActiveCaseId(null);
+      } else {
+        setActiveCaseId(null);
+        setActiveView('cases');
+      }
+    };
+    
+    // Initial state setup if url has hash
+    if (window.location.hash.startsWith('#case/')) {
+      const id = window.location.hash.split('/')[1];
+      setActiveCaseId(id);
+      setActiveView('cases');
+      window.history.replaceState({ view: 'case', caseId: id }, '', window.location.hash);
+    } else if (window.location.hash === '#radar') {
+      setActiveView('radar');
+      window.history.replaceState({ view: 'radar' }, '', '#radar');
+    } else {
+      window.history.replaceState({ view: 'cases' }, '', '/');
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleCaseSelect = (id) => {
+    setActiveCaseId(id);
+    setActiveView('cases');
+    window.history.pushState({ view: 'case', caseId: id }, '', `#case/${id}`);
+  };
+
+  const handleViewChange = (v) => {
+    setActiveView(v);
+    setActiveCaseId(null);
+    window.history.pushState({ view: v }, '', `#${v}`);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -95,11 +139,11 @@ export default function App() {
       <Navbar 
         theme={theme} 
         toggleTheme={toggleTheme} 
-        onCaseSelect={(id) => { setActiveCaseId(id); setActiveView('cases'); }} 
+        onCaseSelect={handleCaseSelect} 
         onLogout={handleLogout} 
         currentUser={currentUser} 
         activeView={activeView}
-        onViewChange={(v) => { setActiveView(v); setActiveCaseId(null); }}
+        onViewChange={handleViewChange}
       />
       
       <main className="container mx-auto px-4 py-8">
@@ -108,7 +152,15 @@ export default function App() {
         ) : activeCaseId ? (
           <CaseDetail 
             caseId={activeCaseId} 
-            onBack={() => setActiveCaseId(null)} 
+            onBack={() => {
+              if (window.history.state !== null) {
+                window.history.back();
+              } else {
+                setActiveCaseId(null);
+                setActiveView('cases');
+                window.history.replaceState({ view: 'cases' }, '', '/');
+              }
+            }} 
             currentUser={currentUser}
           />
         ) : (

@@ -1,12 +1,14 @@
 import express from 'express';
 import { createCase, listCases, getCaseById } from '../services/caseService.js';
-import { uploadDocument, getDocumentsByCase } from '../services/documentService.js';
+import { uploadDocument, getDocumentsByCase, getDocumentsWithText } from '../services/documentService.js';
 import { getCaseAuditLogs } from '../services/auditService.js';
 import { semanticSearch } from '../services/searchService.js';
-import { generateRagResponse } from '../services/aiService.js';
+import { generateRagResponse, generateCaseSummary } from '../services/aiService.js';
 import { uploadSingleEvidence } from '../middleware/uploadMiddleware.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
+
+import { sendEvidenceUploadNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -109,6 +111,19 @@ router.post('/:caseId/documents', requireRole(['INVESTIGATING_OFFICER', 'FORENSI
       ipAddress,
     });
 
+    // Fire and forget email notification
+    getCaseById(req.params.caseId).then(caseDetails => {
+      sendEvidenceUploadNotification({
+        caseId: req.params.caseId,
+        caseNumber: caseDetails.case_number,
+        caseTitle: caseDetails.title,
+        uploaderName: req.user.full_name,
+        uploaderBadge: req.user.badge_number,
+        filename: document.filename,
+        documentType: document.document_category
+      }).catch(e => console.error("Notification trigger failed:", e));
+    }).catch(e => console.error("Could not fetch case for notification:", e));
+
     res.status(201).json({
       success: true,
       message: 'Evidence document uploaded, hashed, and stored successfully.',
@@ -194,6 +209,31 @@ router.post('/:caseId/chat', async (req, res, next) => {
         text_snippet: c.text_content.substring(0, 100) + '...'
       }))
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+router.post('/:caseId/summary', async (req, res, next) => {
+  try {
+    const caseDetails = await getCaseById(req.params.caseId);
+    const documents = await getDocumentsWithText(req.params.caseId);
+    
+    if (!documents || documents.length === 0) {
+      return res.status(400).json({ error: 'No documents available in this case to summarize.' });
+    }
+
+    const summary = await generateCaseSummary(caseDetails.title, caseDetails.case_number, documents);
+
+    await logAuditEvent({
+      userId: req.user.id,
+      caseId: req.params.caseId,
+      action: 'AI_CASE_SUMMARY_GENERATED',
+      metadata: { documentCount: documents.length }
+    });
+
+    res.json({ success: true, summary });
   } catch (err) {
     next(err);
   }

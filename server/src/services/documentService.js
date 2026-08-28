@@ -287,12 +287,29 @@ export async function downloadDocument(documentId, user, ipAddress = '127.0.0.1'
   };
 }
 
+export async function getDocumentsWithText(caseId) {
+  await getCaseById(caseId);
+  const sql = `
+    SELECT 
+      d.id, d.filename, d.document_type, d.document_category,
+      d.extracted_text, d.uploaded_at,
+      u.full_name as uploaded_by_name, u.role as uploaded_by_role
+    FROM documents d
+    LEFT JOIN users u ON d.uploaded_by = u.id
+    WHERE d.case_id = $1
+    ORDER BY d.uploaded_at ASC;
+  `;
+  const res = await query(sql, [caseId]);
+  return res.rows;
+}
+
 export default {
   uploadDocument,
   getDocumentsByCase,
   getDocumentById,
   verifyDocumentIntegrity,
   downloadDocument,
+  getDocumentsWithText,
 };
 export async function applyRedactionsToDocument(documentId, redactions, user, ipAddress = '127.0.0.1') {
   // Fetch original
