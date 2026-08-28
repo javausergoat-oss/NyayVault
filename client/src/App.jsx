@@ -3,13 +3,15 @@ import Navbar from './components/Navbar';
 import CaseList from './components/CaseList';
 import CaseDetail from './components/CaseDetail';
 import Login from './components/Login';
+import Dashboard from './components/Dashboard';
 
 import CrossCaseRadar from './components/CrossCaseRadar';
 import { Analytics } from '@vercel/analytics/react';
+import { LanguageProvider } from './hooks/useTranslation';
 
-export default function App() {
+function AppContent() {
   const [activeCaseId, setActiveCaseId] = useState(null);
-  const [activeView, setActiveView] = useState('cases'); // 'cases' or 'radar'
+  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard', 'cases' or 'radar'
   
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -88,9 +90,12 @@ export default function App() {
       } else if (event.state?.view === 'radar') {
         setActiveView('radar');
         setActiveCaseId(null);
-      } else {
+      } else if (event.state?.view === 'cases') {
         setActiveCaseId(null);
         setActiveView('cases');
+      } else {
+        setActiveCaseId(null);
+        setActiveView('dashboard');
       }
     };
     
@@ -103,8 +108,12 @@ export default function App() {
     } else if (window.location.hash === '#radar') {
       setActiveView('radar');
       window.history.replaceState({ view: 'radar' }, '', '#radar');
+    } else if (window.location.hash === '#cases') {
+      setActiveView('cases');
+      window.history.replaceState({ view: 'cases' }, '', '#cases');
     } else {
-      window.history.replaceState({ view: 'cases' }, '', '/');
+      setActiveView('dashboard');
+      window.history.replaceState({ view: 'dashboard' }, '', '/');
     }
 
     window.addEventListener('popstate', handlePopState);
@@ -156,15 +165,25 @@ export default function App() {
             onBack={() => {
               setActiveCaseId(null);
               setActiveView('cases');
-              window.history.pushState({ view: 'cases' }, '', '/');
+              window.history.pushState({ view: 'cases' }, '', '#cases');
             }} 
             currentUser={currentUser}
           />
+        ) : activeView === 'dashboard' ? (
+          <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} />
         ) : (
-          <CaseList onCaseSelect={setActiveCaseId} currentUser={currentUser} />
+          <CaseList onCaseSelect={handleCaseSelect} currentUser={currentUser} />
         )}
       </main>
       <Analytics />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
