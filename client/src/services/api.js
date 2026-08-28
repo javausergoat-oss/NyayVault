@@ -18,7 +18,9 @@ export async function fetchApi(endpoint, options = {}) {
 
   if (!(options.body instanceof FormData) && options.body) {
     headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(options.body);
+    if (typeof options.body !== 'string') {
+      options.body = JSON.stringify(options.body);
+    }
   }
 
   const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
@@ -119,6 +121,6 @@ export async function findContradictions(caseId) {
 export async function updateCaseStatus(caseId, status) {
   return fetchApi(`/cases/${caseId}/status`, {
     method: 'PATCH',
-    body: JSON.stringify({ status })
+    body: { status }
   });
 }
