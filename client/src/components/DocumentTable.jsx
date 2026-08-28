@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Download, ShieldCheck, ShieldAlert, FileText, Loader2, Copy, X, Maximize2, ChevronDown } from 'lucide-react';
+import { Download, ShieldCheck, ShieldAlert, FileText, Loader2, Copy, X, Maximize2, ChevronDown, FileSignature } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { verifyDocument, getDownloadUrl } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import RedactionModal from './RedactionModal';
@@ -89,8 +90,66 @@ export default function DocumentTable({ documents, onRefresh }) {
     navigator.clipboard.writeText(text);
   };
 
-  // No early return, always render the folder structure
-  
+  const handleGenerateBSA = (doc) => {
+    const docDate = new Date(doc.uploaded_at).toLocaleString('en-IN');
+    
+    const docPdf = new jsPDF();
+    docPdf.setFont('helvetica', 'bold');
+    docPdf.setFontSize(16);
+    docPdf.text('CERTIFICATE UNDER SECTION 63', 105, 20, { align: 'center' });
+    docPdf.setFontSize(12);
+    docPdf.text('OF THE BHARATIYA SAKSHYA ADHINIYAM, 2023', 105, 28, { align: 'center' });
+    
+    docPdf.setFont('helvetica', 'normal');
+    docPdf.setFontSize(10);
+    docPdf.text('This is to certify that the digital evidence detailed below has been produced by a computer', 20, 45);
+    docPdf.text('during the period over which the computer was used regularly to store or process information', 20, 52);
+    docPdf.text('for the purposes of any activities regularly carried on by the designated authority.', 20, 59);
+
+    docPdf.setFont('helvetica', 'bold');
+    docPdf.text('EVIDENCE DETAILS:', 20, 75);
+    
+    docPdf.setFont('helvetica', 'normal');
+    const details = [
+      `Case Number: ${doc.case_number || 'N/A'}`,
+      `Document Name: ${doc.filename}`,
+      `Document ID: ${doc.id}`,
+      `File Size: ${(doc.file_size / 1024).toFixed(2)} KB`,
+      `MIME Type: ${doc.mime_type}`,
+      `Upload Timestamp: ${docDate}`
+    ];
+    
+    details.forEach((line, i) => docPdf.text(line, 25, 85 + (i * 7)));
+
+    docPdf.setFont('helvetica', 'bold');
+    docPdf.text('CRYPTOGRAPHIC CHAIN OF CUSTODY:', 20, 135);
+    docPdf.setFont('helvetica', 'normal');
+    docPdf.text(`SHA-256 Hash Algorithm Applied at Source`, 25, 145);
+    
+    // Break hash into 2 lines if long
+    const hash = doc.sha256_hash;
+    docPdf.setFont('courier', 'normal');
+    docPdf.text(`${hash.substring(0, 32)}`, 25, 155);
+    docPdf.text(`${hash.substring(32)}`, 25, 162);
+    
+    docPdf.setFont('helvetica', 'normal');
+    docPdf.text('DECLARATION:', 20, 185);
+    docPdf.text('I hereby declare that to the best of my knowledge and belief, the computer output was', 20, 195);
+    docPdf.text('produced during the regular course of activities, and the computer was operating properly', 20, 202);
+    docPdf.text('so as not to affect the accuracy of the electronic record.', 20, 209);
+    
+    docPdf.setFont('helvetica', 'bold');
+    docPdf.text('AUTHORIZED SIGNATORY:', 20, 240);
+    docPdf.setFont('helvetica', 'normal');
+    docPdf.text(`Name: ${doc.uploaded_by_name}`, 20, 250);
+    docPdf.text(`Badge / ID: ${doc.uploaded_by_badge}`, 20, 257);
+    docPdf.text(`Department: ${doc.uploaded_by_department}`, 20, 264);
+    
+    docPdf.text('_____________________________', 140, 257);
+    docPdf.text('(Signature / Digital Seal)', 145, 264);
+
+    docPdf.save(`Sec_63_BSA_${doc.filename}.pdf`);
+  };
 
   return (
     <div className="space-y-4">
@@ -198,6 +257,12 @@ export default function DocumentTable({ documents, onRefresh }) {
                                 </div>
                               </td>
                               <td className="p-4 text-right space-x-2">
+                                <button 
+                                  onClick={() => handleGenerateBSA(doc)}
+                                  className="btn-outline text-xs px-3 py-2 rounded-lg font-semibold inline-flex items-center gap-2 shadow-sm border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800/50 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                                >
+                                  <FileSignature size={14} /> BSA Sec 63
+                                </button>
                                 <button 
                                   onClick={() => openDocumentViewer(doc)}
                                   disabled={loadingDoc === doc.id}

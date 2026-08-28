@@ -1,7 +1,9 @@
-import { Shield, LogOut, Sun, Moon, UserCircle } from 'lucide-react';
+import { Shield, LogOut, Sun, Moon, UserCircle, Languages } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useTranslation } from '../hooks/useTranslation';
 
 export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, currentUser, activeView, onViewChange }) {
+  const { t, language, toggleLanguage } = useTranslation();
   return (
     <motion.nav 
       initial={{ y: -100 }}
@@ -18,23 +20,48 @@ export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, cur
           </div>
           <div>
             <h1 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 dark:from-blue-400 dark:to-indigo-400 tracking-tight">
-              SIH Vault
+              {t('SIH Vault')}
             </h1>
             <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-slate-400">
-              Evidence System
+              {t('Evidence System')}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          {currentUser?.role === 'INVESTIGATING_OFFICER' && (
+        {currentUser && (
+          <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
             <button
-              onClick={() => onViewChange(activeView === 'radar' ? 'cases' : 'radar')}
-              className={`text-sm font-bold px-4 py-2 rounded-xl transition-colors border ${activeView === 'radar' ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border-transparent dark:border-slate-700'}`}
+              onClick={() => onViewChange('dashboard')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeView === 'dashboard' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
             >
-              Cross-Case Radar
+              {t('Dashboard')}
             </button>
-          )}
+            <button
+              onClick={() => onViewChange('cases')}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeView === 'cases' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+            >
+              {t('Cases')}
+            </button>
+            {currentUser.role === 'INVESTIGATING_OFFICER' && (
+              <button
+                onClick={() => onViewChange('radar')}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeView === 'radar' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
+              >
+                {t('Cross-Case Radar')}
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 md:gap-4">
+          <button 
+            onClick={toggleLanguage} 
+            className="flex items-center gap-1 px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-transparent dark:border-slate-700 font-medium text-sm"
+            title="Toggle Language"
+          >
+            <Languages size={18} />
+            {language === 'en' ? 'हि' : 'EN'}
+          </button>
           
           <button 
             onClick={toggleTheme} 

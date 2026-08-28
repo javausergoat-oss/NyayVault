@@ -8,3 +8,15 @@ The confidential informant, Ms. Priya Sharma (DOB: 12-May-1995), residing at 45 
 For witness protection purposes, her identity must be sealed. Her National ID (Aadhaar: 1234-5678-9012) and Bank Account (SBI: 33445566778) have been used by the suspects without her knowledge. 
 
 She fears for her life and requests immediate police protection. Do not disclose her name in open court filings.
+
+Invoke-RestMethod -Uri "https://sih-project-pied-pi.vercel.app/api/dev/user" -Method Post -ContentType "application/json" -Body (@{
+badge_number = "JUD-1"
+full_name = "Adv. Vikram Singh"
+role = "Defense"
+department = "Faridabad District Court"
+>> } | ConvertTo-Json)
+JUD-1
+POL-1
+ADV-1
+ADV-2
+REG-1

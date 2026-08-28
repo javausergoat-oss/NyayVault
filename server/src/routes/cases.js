@@ -1,9 +1,9 @@
 import express from 'express';
-import { createCase, listCases, getCaseById } from '../services/caseService.js';
+import { createCase, listCases, getCaseById, updateCaseStatus } from '../services/caseService.js';
 import { uploadDocument, getDocumentsByCase, getDocumentsWithText } from '../services/documentService.js';
 import { getCaseAuditLogs } from '../services/auditService.js';
 import { semanticSearch } from '../services/searchService.js';
-import { generateRagResponse, generateCaseSummary } from '../services/aiService.js';
+import { generateRagResponse, generateCaseSummary, findContradictions } from '../services/aiService.js';
 import { uploadSingleEvidence } from '../middleware/uploadMiddleware.js';
 import { logAuditEvent } from '../services/auditService.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
@@ -234,6 +234,53 @@ router.post('/:caseId/summary', async (req, res, next) => {
     });
 
     res.json({ success: true, summary });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/cases/:caseId/contradictions
+ * Finds contradictions among documents using AI.
+ */
+router.get('/:caseId/contradictions', async (req, res, next) => {
+  try {
+    const documents = await getDocumentsWithText(req.params.caseId);
+    
+    if (!documents || documents.length < 2) {
+      return res.json({ success: true, contradictions: [] });
+    }
+
+    const contradictions = await findContradictions(documents);
+
+    await logAuditEvent({
+      userId: req.user.id,
+      caseId: req.params.caseId,
+      action: 'AI_CONTRADICTION_ANALYSIS_RUN',
+      metadata: { documentCount: documents.length, contradictionCount: contradictions.length }
+    });
+
+    res.json({ success: true, contradictions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * PATCH /api/cases/:caseId/status
+ * Updates the workflow status of a case.
+ */
+router.patch('/:caseId/status', async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required' });
+    }
+
+    const updatedCase = await updateCaseStatus(req.params.caseId, status, req.user, ipAddress);
+    res.json({ success: true, case: updatedCase });
   } catch (err) {
     next(err);
   }
