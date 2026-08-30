@@ -51,19 +51,38 @@ export async function initDatabase() {
     const dataDir = path.resolve(__dirname, '../../../data/pglite');
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
+    } else {
+      // Clean up stale lock files from previous unclean shutdowns
+      try {
+        const pidFile = path.resolve(dataDir, 'postmaster.pid');
+        if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
+        const lockFile = path.resolve(dataDir, '.s.PGSQL.5432.lock.out');
+        if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
+      } catch (e) {
+        console.warn('Could not remove stale lock files:', e.message);
+      }
     }
     
-    // Dynamic import for vector to avoid issues if someone doesn't use it, but we need it now
-    const { vector } = await import('@electric-sql/pglite/vector');
-    
-    pgliteInstance = new PGlite({
-      dataDir,
-      extensions: { vector },
-    });
-    
-    // PGlite instantiation takes a moment to be ready, we can wait by just running a quick query
-    await pgliteInstance.query('SELECT 1');
+    try {
+      const { vector } = await import('@electric-sql/pglite/vector');
+      pgliteInstance = new PGlite({ dataDir, extensions: { vector } });
+      await pgliteInstance.query('SELECT 1');
+    } catch (extErr) {
+      console.warn('PGlite vector extension unavailable, using standard PGlite engine:', extErr.message);
+      pgliteInstance = new PGlite({ dataDir });
+      await pgliteInstance.query('SELECT 1');
+    }
     await pgliteInstance.exec(schemaSql);
+
+    // Auto-apply non-breaking column migrations
+    await pgliteInstance.exec(`
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS is_redacted BOOLEAN DEFAULT FALSE;
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS parent_document_id VARCHAR(64) REFERENCES documents(id);
+      ALTER TABLE documents ADD COLUMN IF NOT EXISTS document_category VARCHAR(50) DEFAULT 'GENERAL';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+      ALTER TABLE cases ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'INVESTIGATION';
+    `);
+
     isEmbeddedMode = true;
     console.log('Embedded PostgreSQL engine initialized at:', dataDir);
   } catch (embeddedError) {
