@@ -48,15 +48,6 @@ export default function DocumentTable({ documents, onRefresh }) {
       });
       const fullDoc = await res.json();
       setSelectedDoc(fullDoc.document);
-
-      const fileRes = await fetch(getDownloadUrl(doc.id), {
-        headers: { 
-          'x-user-id': localStorage.getItem('sih_active_user'),
-          'Authorization': `Bearer ${localStorage.getItem('sih_token')}`
-        }
-      });
-      const blob = await fileRes.blob();
-      setBlobUrl(URL.createObjectURL(blob));
     } catch (err) {
       console.error("Failed to load viewer:", err);
       alert("Error loading document.");
@@ -67,10 +58,6 @@ export default function DocumentTable({ documents, onRefresh }) {
 
   const closeViewer = () => {
     setSelectedDoc(null);
-    if (blobUrl) {
-      URL.revokeObjectURL(blobUrl);
-      setBlobUrl(null);
-    }
   };
 
   const handleVerify = async (docId) => {
@@ -294,7 +281,7 @@ export default function DocumentTable({ documents, onRefresh }) {
       })}
       
       <AnimatePresence>
-        {selectedDoc && blobUrl && (
+        {selectedDoc && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -322,13 +309,41 @@ export default function DocumentTable({ documents, onRefresh }) {
               </div>
               
               <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
-                {/* Left side: Document PDF Viewer */}
-                <div className="border-r border-border bg-slate-200 dark:bg-slate-950 flex flex-col h-full relative">
-                  <iframe 
-                    src={blobUrl}
-                    className="w-full h-full border-none bg-white dark:bg-slate-800"
-                    title={selectedDoc.filename}
-                  />
+                {/* Left side: Document Text Viewer */}
+                <div className="border-r border-border bg-gray-50 dark:bg-slate-950 flex flex-col h-full relative overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-900 border-b border-border text-xs text-slate-500 font-mono">
+                    <FileText size={12} />
+                    <span>{selectedDoc.filename}</span>
+                    <span className="ml-auto text-slate-400">{selectedDoc.document_type}</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6">
+                    {selectedDoc.extracted_text ? (
+                      <div className="max-w-2xl mx-auto">
+                        {/* Document header */}
+                        <div className="text-center mb-8 pb-6 border-b-2 border-slate-200 dark:border-slate-700">
+                          <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-semibold mb-3">
+                            <FileText size={10} />
+                            {selectedDoc.document_type || 'Document'}
+                          </div>
+                          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">{selectedDoc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ')}</h2>
+                        </div>
+                        {/* Document body — render each line */}
+                        <div className="font-mono text-sm leading-7 text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words">
+                          {selectedDoc.extracted_text}
+                        </div>
+                        {/* Footer watermark */}
+                        <div className="mt-10 pt-4 border-t border-dashed border-slate-200 dark:border-slate-700 text-center">
+                          <p className="text-[10px] text-slate-400 tracking-widest uppercase">SIH26190 — Secure Digital Evidence Vault · Extracted via AI OCR · Case: {selectedDoc.case_id}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                        <FileText size={48} className="mb-4 opacity-30" />
+                        <p className="text-sm font-medium">No text content extracted</p>
+                        <p className="text-xs mt-1">AI processing may still be pending</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Right side: AI Intelligence */}
