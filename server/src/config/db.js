@@ -64,12 +64,18 @@ export async function initDatabase() {
     }
     
     try {
-      const { vector } = await import('@electric-sql/pglite/vector');
-      pgliteInstance = new PGlite({ dataDir, extensions: { vector } });
-      await pgliteInstance.query('SELECT 1');
-    } catch (extErr) {
-      console.warn('PGlite vector extension unavailable, using standard PGlite engine:', extErr.message);
-      pgliteInstance = new PGlite({ dataDir });
+      try {
+        const { vector } = await import('@electric-sql/pglite/vector');
+        pgliteInstance = new PGlite({ dataDir, extensions: { vector } });
+        await pgliteInstance.query('SELECT 1');
+      } catch (extErr) {
+        console.warn('PGlite vector extension unavailable, using standard PGlite engine:', extErr.message);
+        pgliteInstance = new PGlite({ dataDir });
+        await pgliteInstance.query('SELECT 1');
+      }
+    } catch (pglErr) {
+      console.warn('PGlite dataDir initialization error, using in-memory PGlite instance:', pglErr.message);
+      pgliteInstance = new PGlite();
       await pgliteInstance.query('SELECT 1');
     }
     await pgliteInstance.exec(schemaSql);

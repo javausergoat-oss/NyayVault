@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const translations = {
   en: {
-    'SIH Vault': 'SIH Vault',
+    'SIH Vault': 'Nyay Vault',
     'Evidence System': 'Evidence System',
     'Cross-Case Radar': 'Cross-Case Radar',
     'Dashboard': 'Dashboard',
@@ -22,7 +22,7 @@ const translations = {
     'View & Intel': 'View & Intel'
   },
   hi: {
-    'SIH Vault': 'SIH वॉल्ट',
+    'SIH Vault': 'न्याय वॉल्ट',
     'Evidence System': 'साक्ष्य प्रणाली',
     'Cross-Case Radar': 'क्रॉस-केस रडार',
     'Dashboard': 'डैशबोर्ड',

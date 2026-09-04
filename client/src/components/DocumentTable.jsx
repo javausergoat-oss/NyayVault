@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, ShieldCheck, ShieldAlert, FileText, Loader2, Copy, X, Maximize2, ChevronDown, FileSignature } from 'lucide-react';
+import { Download, ShieldCheck, ShieldAlert, FileText, Loader2, Copy, X, Maximize2, ChevronDown, FileSignature, Search, SlidersHorizontal } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { verifyDocument, getDownloadUrl } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ export default function DocumentTable({ documents, onRefresh }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [loadingDoc, setLoadingDoc] = useState(null);
   const [redactingDoc, setRedactingDoc] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const [expandedFolders, setExpandedFolders] = useState({
     INVESTIGATION: true, JUDICIAL: true, PROSECUTION: true, DEFENSE: true, REGISTRAR: true, GENERAL: true
@@ -141,7 +142,10 @@ export default function DocumentTable({ documents, onRefresh }) {
   return (
     <div className="space-y-4">
       {Object.entries(FOLDER_CONFIG).map(([category, config]) => {
-        const docs = groupedDocs[category] || [];
+        const rawDocs = groupedDocs[category] || [];
+        const docs = rawDocs.filter(d => 
+          !searchTerm || d.filename.toLowerCase().includes(searchTerm.toLowerCase())
+        );
         
         // Hide folders entirely for IOs if it's not their folder, since they can't access them anyway
         const userRole = localStorage.getItem('sih_active_role');
@@ -154,17 +158,37 @@ export default function DocumentTable({ documents, onRefresh }) {
         const expanded = expandedFolders[category];
         
         return (
-          <div key={category} className="card overflow-hidden rounded-2xl border border-border shadow-sm bg-card">
-            <div 
-              onClick={() => toggleFolder(category)}
-              className="flex items-center justify-between px-4 py-3 bg-slate-100 dark:bg-slate-800/80 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{config.icon}</span>
-                <span className="font-bold text-sm text-slate-700 dark:text-slate-200">{config.label}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-semibold">{docs.length}</span>
+          <div key={category} className="bg-white dark:bg-slate-900 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+            {/* Top Category Toolbar Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+              <div 
+                onClick={() => toggleFolder(category)}
+                className="flex items-center gap-2.5 cursor-pointer select-none"
+              >
+                <div className="w-8 h-8 rounded-lg bg-[#edf7f2] dark:bg-emerald-950/40 flex items-center justify-center text-[#1b4d3e] dark:text-emerald-400">
+                  <Search size={16} />
+                </div>
+                <span className="font-extrabold text-sm text-slate-900 dark:text-white">{config.label}</span>
+                <span className="text-[11px] w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center">
+                  {docs.length}
+                </span>
               </div>
-              <ChevronDown className={`transition-transform ${expanded ? '' : '-rotate-90'}`} size={18} />
+
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center">
+                  <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+                  <input 
+                    type="text" 
+                    placeholder="Search in this folder..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-48 sm:w-64 bg-slate-50 dark:bg-slate-800/80 text-xs rounded-xl pl-9 pr-3 py-1.5 border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-emerald-500 placeholder:text-slate-400"
+                  />
+                </div>
+                <button className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+                  <SlidersHorizontal size={15} />
+                </button>
+              </div>
             </div>
             
             <AnimatePresence>
@@ -176,21 +200,32 @@ export default function DocumentTable({ documents, onRefresh }) {
                   className="overflow-hidden"
                 >
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[900px]">
+                    <table className="w-full text-left border-collapse min-w-[850px] text-xs">
                       <thead>
-                        <tr className="bg-slate-50/50 dark:bg-slate-900/50">
-                          <th className="p-4 border-b border-border text-xs font-semibold text-slate-500 uppercase tracking-wider">Document</th>
-                          <th className="p-4 border-b border-border text-xs font-semibold text-slate-500 uppercase tracking-wider">Type / Status</th>
-                          <th className="p-4 border-b border-border text-xs font-semibold text-slate-500 uppercase tracking-wider">Size</th>
-                          <th className="p-4 border-b border-border text-xs font-semibold text-slate-500 uppercase tracking-wider">Integrity / Hash</th>
-                          <th className="p-4 border-b border-border text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                        <tr className="bg-slate-50/60 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                          <th className="p-3.5 w-10 text-center">
+                            <input type="checkbox" className="rounded border-slate-300 dark:border-slate-700 accent-[#1b4d3e]" />
+                          </th>
+                          <th className="p-3.5">DOCUMENT</th>
+                          <th className="p-3.5">TYPE / STATUS</th>
+                          <th className="p-3.5">SIZE</th>
+                          <th className="p-3.5">INTEGRITY / HASH</th>
+                          <th className="p-3.5 text-right">ACTIONS</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                         {docs.length === 0 ? (
                           <tr>
-                            <td colSpan="5" className="p-8 text-center text-slate-500 italic">
-                              No documents uploaded in this folder yet.
+                            <td colSpan="6" className="py-16 text-center">
+                              <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                                <FileText size={42} className="stroke-[1.25] text-slate-300 dark:text-slate-600 mb-3" />
+                                <p className="text-sm font-bold text-slate-600 dark:text-slate-400">
+                                  No documents uploaded in this category folder.
+                                </p>
+                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                  Upload files to get started.
+                                </p>
+                              </div>
                             </td>
                           </tr>
                         ) : docs.map(doc => {
@@ -198,72 +233,79 @@ export default function DocumentTable({ documents, onRefresh }) {
                           const result = verifyResult[doc.id];
                           
                           return (
-                            <tr key={doc.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                              <td className="p-4">
-                                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                            <tr key={doc.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-3.5 text-center">
+                                <input type="checkbox" className="rounded border-slate-300 dark:border-slate-700 accent-[#1b4d3e]" />
+                              </td>
+                              <td className="p-3.5">
+                                <span className="font-bold text-slate-900 dark:text-white">
                                   {doc.filename}
                                 </span>
-                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                  By {doc.uploaded_by_name} ({doc.uploaded_by_badge}) - {doc.uploaded_by_department}
+                                <div className="text-[11px] text-slate-500 mt-0.5">
+                                  By {doc.uploaded_by_name} ({doc.uploaded_by_badge})
                                 </div>
                               </td>
-                              <td className="p-4">
-                                <div className="flex flex-col gap-2 items-start">
-                                  <span className={`badge text-xs ${doc.document_type === 'UNKNOWN' ? 'badge-gray' : 'badge-blue'}`}>
+                              <td className="p-3.5">
+                                <div className="flex flex-col gap-1 items-start">
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                     {doc.document_type || 'UNKNOWN'}
                                   </span>
-                                  <span className={`badge text-[10px] ${doc.status === 'processed' ? 'badge-green' : doc.status === 'processing' ? 'badge-blue' : doc.status === 'needs_review' ? 'badge-red' : 'badge-gray'}`}>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                    doc.status === 'processed' 
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                                      : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                                  }`}>
                                     {doc.status}
                                   </span>
                                 </div>
                               </td>
-                              <td className="p-4 text-sm font-medium text-slate-700 dark:text-slate-300">
+                              <td className="p-3.5 text-slate-600 dark:text-slate-400">
                                 {(doc.file_size / 1024).toFixed(1)} KB
                               </td>
-                              <td className="p-4">
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex items-center gap-2 text-xs font-mono bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded w-max border border-border">
+                              <td className="p-3.5">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-1.5 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded w-max text-[11px] border border-slate-200 dark:border-slate-700">
                                     <span className="w-24 truncate text-slate-600 dark:text-slate-400" title={doc.sha256_hash}>{doc.sha256_hash}</span>
-                                    <button onClick={() => handleCopy(doc.sha256_hash)} className="hover:text-blue-500" title="Copy full hash"><Copy size={12} /></button>
+                                    <button onClick={() => handleCopy(doc.sha256_hash)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" title="Copy full hash"><Copy size={11} /></button>
                                   </div>
                                   {result ? (
-                                    <span className={`flex items-center gap-1 text-xs font-bold ${result.status === 'VERIFIED_AUTHENTIC' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                      {result.status === 'VERIFIED_AUTHENTIC' ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
+                                    <span className={`flex items-center gap-1 text-[11px] font-bold ${result.status === 'VERIFIED_AUTHENTIC' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
+                                      {result.status === 'VERIFIED_AUTHENTIC' ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
                                       {result.status}
                                     </span>
                                   ) : (
                                     <button 
                                       onClick={() => handleVerify(doc.id)}
                                       disabled={isVerifying}
-                                      className="btn-outline text-xs py-1 px-2 rounded disabled:opacity-50 flex items-center gap-1 w-max border-slate-300 dark:border-slate-700"
+                                      className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1 w-max"
                                     >
-                                      {isVerifying ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-                                      Verify Integrity
+                                      {isVerifying ? <Loader2 size={11} className="animate-spin" /> : <ShieldCheck size={11} />}
+                                      Verify Hash
                                     </button>
                                   )}
                                 </div>
                               </td>
-                              <td className="p-4 text-right space-x-2">
+                              <td className="p-3.5 text-right space-x-1.5">
                                 <button 
                                   onClick={() => handleGenerateBSA(doc)}
-                                  className="btn-outline text-xs px-3 py-2 rounded-lg font-semibold inline-flex items-center gap-2 shadow-sm border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800/50 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors inline-flex items-center gap-1 text-[11px]"
                                 >
-                                  <FileSignature size={14} /> BSA Sec 63
+                                  <FileSignature size={13} /> BSA Sec 63
                                 </button>
                                 <button 
                                   onClick={() => openDocumentViewer(doc)}
                                   disabled={loadingDoc === doc.id}
-                                  className="btn-primary text-xs px-4 py-2 rounded-lg font-semibold inline-flex items-center gap-2 shadow-sm disabled:opacity-50"
+                                  className="px-3 py-1 rounded-lg bg-[#1b4d3e] hover:bg-[#143c30] text-white font-bold inline-flex items-center gap-1 text-[11px] disabled:opacity-50 transition-colors"
                                 >
-                                  {loadingDoc === doc.id ? <Loader2 size={14} className="animate-spin" /> : <Maximize2 size={14} />} 
-                                  View & Intel
+                                  {loadingDoc === doc.id ? <Loader2 size={13} className="animate-spin" /> : <Maximize2 size={13} />} 
+                                  View
                                 </button>
                                 {!doc.is_redacted && (
                                   <button 
                                     onClick={() => setRedactingDoc(doc)}
-                                    className="btn-outline text-xs px-3 py-2 rounded-lg font-semibold inline-flex items-center gap-2 shadow-sm border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/30"
+                                    className="px-2.5 py-1 rounded-lg border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors inline-flex items-center gap-1 text-[11px]"
                                   >
-                                    <ShieldAlert size={14} /> Redact
+                                    <ShieldAlert size={13} /> Redact
                                   </button>
                                 )}
                               </td>
@@ -333,7 +375,7 @@ export default function DocumentTable({ documents, onRefresh }) {
                         </div>
                         {/* Footer watermark */}
                         <div className="mt-10 pt-4 border-t border-dashed border-slate-200 dark:border-slate-700 text-center">
-                          <p className="text-[10px] text-slate-400 tracking-widest uppercase">SIH26190 — Secure Digital Evidence Vault · Extracted via AI OCR · Case: {selectedDoc.case_id}</p>
+                          <p className="text-[10px] text-slate-400 tracking-widest uppercase">SIH26190 — Secure Nyay Vault · Extracted via AI OCR · Case: {selectedDoc.case_id}</p>
                         </div>
                       </div>
                     ) : (

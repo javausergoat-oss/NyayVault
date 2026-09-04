@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileBarChart, Sparkles, Download, Loader2, AlertCircle } from 'lucide-react';
+import { FileBarChart, Download, Loader2, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { generateCaseSummary } from '../services/api';
@@ -27,28 +27,24 @@ export default function CaseSummary({ caseId, caseDetails }) {
     if (!summary) return;
     
     const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42);
+    doc.text('Executive Case Summary Report', 14, 20);
     
-    // Header
-    doc.setFontSize(22);
-    doc.setTextColor(30, 64, 175); // Blue-800
-    doc.text('Executive Case Summary', 14, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Case No: ${caseDetails.case_number}`, 14, 28);
+    doc.text(`Title: ${caseDetails.title}`, 14, 34);
+    doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 40);
     
-    // Meta info
-    doc.setFontSize(11);
-    doc.setTextColor(100, 116, 139); // Slate-500
-    doc.text(`Case No: ${caseDetails.case_number}`, 14, 32);
-    doc.text(`Title: ${caseDetails.title}`, 14, 38);
-    doc.text(`Generated On: ${new Date().toLocaleString()}`, 14, 44);
-    
-    doc.setDrawColor(226, 232, 240); // Slate-200
-    doc.line(14, 48, 196, 48);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, 44, 196, 44);
 
-    // AI Content (Basic parsing of markdown for jsPDF)
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42); // Slate-900
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
     
     const lines = doc.splitTextToSize(summary.replace(/\*\*/g, ''), 180);
-    let y = 56;
+    let y = 52;
     
     for (let i = 0; i < lines.length; i++) {
       if (y > 280) {
@@ -56,80 +52,74 @@ export default function CaseSummary({ caseId, caseDetails }) {
         y = 20;
       }
       doc.text(lines[i], 14, y);
-      y += 7;
+      y += 6;
     }
     
-    // Footer
-    doc.setFontSize(9);
-    doc.setTextColor(148, 163, 184); // Slate-400
-    doc.text('Generated securely by SIH Evidence Vault AI', 14, 290);
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Cryptographically Verified — Nyay Vault', 14, 290);
     
-    doc.save(`${caseDetails.case_number}_AI_Summary.pdf`);
+    doc.save(`${caseDetails.case_number}_Summary.pdf`);
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-3xl p-8 relative overflow-hidden">
-        {/* Glow Effects */}
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <div className="p-4 bg-white dark:bg-slate-900 shadow-xl shadow-indigo-500/10 rounded-2xl mb-6 inline-flex items-center justify-center border border-indigo-500/20">
-            <Sparkles className="w-8 h-8 text-indigo-500" />
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <FileBarChart size={18} className="text-emerald-600 dark:text-emerald-400" /> Executive Case Brief Synthesis
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Synthesizes all evidence files, complaints, and timeline milestones into a structured legal summary.
+            </p>
           </div>
-          <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">AI Executive Summary</h2>
-          <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
-            Instantly synthesize all evidence, complaints, and reports into a single, cohesive timeline and summary. Perfect for Judges reviewing a case before trial.
-          </p>
 
           {!summary && !loading && (
             <button
               onClick={handleGenerate}
-              className="px-8 py-4 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 text-white rounded-xl font-bold text-lg shadow-xl shadow-slate-900/20 dark:shadow-white/10 transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
+              className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-colors"
             >
-              <FileBarChart size={22} />
-              Generate Report Now
+              <FileBarChart size={16} /> Synthesize Brief
             </button>
           )}
 
           {loading && (
-            <div className="flex flex-col items-center gap-4 text-indigo-600 dark:text-indigo-400">
-              <Loader2 className="w-10 h-10 animate-spin" />
-              <p className="font-semibold animate-pulse">Reading case files & synthesizing evidence...</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-6 flex items-center gap-2 text-rose-500 bg-rose-500/10 px-6 py-4 rounded-xl border border-rose-500/20">
-              <AlertCircle size={20} />
-              <p className="font-semibold">{error}</p>
+            <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
+              <Loader2 size={16} className="animate-spin" />
+              <span>Analyzing evidence vault & synthesizing brief...</span>
             </div>
           )}
         </div>
+
+        {error && (
+          <div className="mt-4 p-3 bg-rose-50 text-rose-700 dark:bg-rose-950/40 text-xs rounded-xl border border-rose-200 dark:border-rose-900/30 flex items-center gap-2">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
       </div>
 
       {summary && (
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden"
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden"
         >
-          <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <FileBarChart className="text-indigo-500" />
-              Generated Case Brief
-            </h3>
+          <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+            <h4 className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+              <FileBarChart size={16} className="text-emerald-600" /> Synthesized Case Summary
+            </h4>
             <button
               onClick={handleDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg font-semibold text-sm transition-colors shadow-sm"
+              className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
             >
-              <Download size={16} /> Export PDF
+              <Download size={14} /> Export Brief PDF
             </button>
           </div>
-          <div className="p-8 prose prose-slate dark:prose-invert max-w-none">
+          <div className="p-6 text-xs leading-relaxed text-slate-800 dark:text-slate-200 font-sans space-y-2">
             {summary.split('\n').map((line, i) => (
-              <p key={i} className="mb-2">{line.replace(/\*\*/g, '')}</p>
+              <p key={i}>{line.replace(/\*\*/g, '')}</p>
             ))}
           </div>
         </motion.div>

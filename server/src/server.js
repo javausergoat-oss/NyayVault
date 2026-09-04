@@ -12,7 +12,7 @@ import app from './app.js';
 import { initDatabase } from './config/db.js';
 import { initStorage } from './storage/s3Client.js';
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 async function startServer() {
   try {

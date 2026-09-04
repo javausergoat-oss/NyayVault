@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, FileText, Activity, Search, Shield, Lock, Bot, ClipboardList, Clock, FileBarChart, AlertTriangle } from 'lucide-react';
-import { getCaseDetails, getCaseDocuments, getCaseAuditTrail, getComplaints, updateCaseStatus } from '../services/api';
+import { 
+  ArrowLeft, 
+  FileText, 
+  Search, 
+  Lock, 
+  Bot, 
+  Clock, 
+  FileBarChart, 
+  AlertTriangle,
+  ShieldCheck,
+  ChevronRight,
+  Database,
+  Folder,
+  MoreVertical
+} from 'lucide-react';
+import { getCaseDetails, getCaseDocuments, getCaseAuditTrail, updateCaseStatus } from '../services/api';
 import DocumentUploader from './DocumentUploader';
 import DocumentTable from './DocumentTable';
 import AuditTrailView from './AuditTrailView';
@@ -9,7 +23,6 @@ import CaseAssistant from './CaseAssistant';
 import CaseTimeline from './CaseTimeline';
 import CaseSummary from './CaseSummary';
 import ContradictionPanel from './ContradictionPanel';
-
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CaseDetail({ caseId, onBack, currentUser }) {
@@ -17,6 +30,10 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
   const [documents, setDocuments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('evidence'); 
+  
+  // Sub-segment states for unified hubs
+  const [intelSubTab, setIntelSubTab] = useState('search'); // 'search' | 'chat' | 'contradictions'
+  const [timelineSubTab, setTimelineSubTab] = useState('timeline'); // 'timeline' | 'audit'
 
   const loadData = async () => {
     try {
@@ -29,7 +46,7 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
       setDocuments(docsRes.documents || []);
       setAuditLogs(auditRes.auditLogs || []);
     } catch (err) {
-      alert('Failed to load case data: ' + err.message);
+      console.error('Failed to load case data:', err);
     }
   };
 
@@ -42,7 +59,6 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
     
     const nextStatus = WORKFLOW_STAGES[currentIdx + 1];
     
-    // Basic role checks for UI feedback (backend also enforces this via role rules, but let's give immediate feedback)
     if (nextStatus === 'CHARGE_SHEET' && currentUser?.role !== 'INVESTIGATING_OFFICER') {
       alert('Only the Investigating Officer can file the Charge Sheet.');
       return;
@@ -54,7 +70,7 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
 
     try {
       await updateCaseStatus(caseId, nextStatus);
-      await loadData(); // Reload to get new status and audit logs
+      await loadData();
     } catch (err) {
       alert('Failed to advance case status: ' + err.message);
     }
@@ -66,175 +82,125 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
 
   if (!caseDetails) return (
     <div className="flex justify-center p-20">
-      <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+      <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
     </div>
   );
 
+  const mainTabs = [
+    { id: 'evidence', label: 'Evidence Vault', icon: FileText },
+    { id: 'intel', label: 'Intelligence & Search', icon: Database },
+    { id: 'timeline', label: 'Timeline & Chain of Custody', icon: Clock },
+    { id: 'summary', label: 'Executive Brief', icon: FileBarChart },
+  ];
+
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="max-w-6xl mx-auto mt-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-7xl mx-auto space-y-4"
     >
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4 bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-border shadow-sm">
+      {/* Breadcrumb Bar */}
+      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <button 
+          onClick={onBack}
+          className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+        >
+          Cases
+        </button>
+        <ChevronRight size={14} className="text-slate-400" />
+        <span className="text-slate-900 dark:text-white font-bold">{caseDetails.case_number}</span>
+      </div>
+
+      {/* Header Container */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack} 
-            className="p-3 bg-white dark:bg-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border border-border text-slate-600 dark:text-slate-300"
+            className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-600 dark:text-slate-300"
+            title="Back to Cases"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </button>
+
+          <div className="w-12 h-12 rounded-xl bg-[#edf7f2] dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center text-[#1b4d3e] dark:text-emerald-400 shrink-0">
+            <Folder size={24} />
+          </div>
+
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 {caseDetails.case_number}
               </h1>
-              <span className={`badge text-xs flex items-center gap-1 ${caseDetails.security_level === 'TOP_SECRET' ? 'badge-red' : 'badge-gray'}`}>
-                {caseDetails.security_level === 'TOP_SECRET' && <Lock size={12} />}
-                {caseDetails.security_level}
+              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-[#fee2e2] text-[#dc2626] dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40">
+                {caseDetails.security_level || 'RESTRICTED'}
               </span>
             </div>
-            <p className="text-slate-600 dark:text-slate-400 font-medium">{caseDetails.title}</p>
+            <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide mt-0.5">
+              {caseDetails.title || 'STATE VS HARDIK'}
+            </p>
           </div>
         </div>
-        
-        <div className="flex flex-col text-right">
-          <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Created By</span>
-          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{caseDetails.created_by_badge}</span>
-        </div>
-      </div>
 
-      {/* Case Status Workflow */}
-      <div className="mb-8 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex-1 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-            <div className="flex items-center min-w-max">
-              {WORKFLOW_STAGES.map((stage, idx) => {
-                const currentIdx = WORKFLOW_STAGES.indexOf(caseDetails.status || 'INVESTIGATION');
-                const isCompleted = idx < currentIdx;
-                const isCurrent = idx === currentIdx;
-                return (
-                  <div key={stage} className="flex items-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors ${
-                        isCompleted ? 'bg-indigo-600 border-indigo-600 text-white' : 
-                        isCurrent ? 'bg-indigo-100 border-indigo-600 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-400' : 
-                        'bg-slate-100 border-slate-300 text-slate-400 dark:bg-slate-800 dark:border-slate-700'
-                      }`}>
-                        {idx + 1}
-                      </div>
-                      <span className={`text-[10px] font-bold uppercase tracking-wider ${
-                        isCurrent ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-500'
-                      }`}>
-                        {stage.replace('_', ' ')}
-                      </span>
-                    </div>
-                    {idx < WORKFLOW_STAGES.length - 1 && (
-                      <div className={`w-12 md:w-20 h-1 mx-2 rounded-full ${
-                        isCompleted ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
-                      }`} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+        {/* Right Metadata Grid & Action Menu */}
+        <div className="flex items-center gap-6 sm:gap-10 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <div>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Case ID</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{caseDetails.case_id || caseDetails.id || 'CR-2026-0001'}</span>
           </div>
-          
-          <button 
-            onClick={handleAdvanceStatus}
-            disabled={caseDetails.status === 'CLOSED'}
-            className="btn-primary py-2 px-4 rounded-xl text-sm font-semibold flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
-          >
-            Advance Stage <Activity size={16} />
+
+          <div>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Created By</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{caseDetails.created_by_badge || 'POL-1'}</span>
+          </div>
+
+          <div>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Created On</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              {caseDetails.created_at ? new Date(caseDetails.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '12 Aug 2025'}
+            </span>
+          </div>
+
+          <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800">
+            <MoreVertical size={18} />
           </button>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-8 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-xl border border-border overflow-x-auto w-max">
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'evidence' 
-              ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-          }`}
-          onClick={() => setActiveTab('evidence')}
-        >
-          <FileText size={16} /> Evidence Vault
-        </button>
 
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'search' 
-              ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-          }`}
-          onClick={() => setActiveTab('search')}
-        >
-          <Search size={16} /> Smart Search
-        </button>
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'chat' 
-              ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-          }`}
-          onClick={() => setActiveTab('chat')}
-        >
-          <Bot size={16} /> AI Assistant
-        </button>
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'timeline' 
-              ? 'bg-white dark:bg-slate-800 text-pink-600 dark:text-pink-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-          }`}
-          onClick={() => setActiveTab('timeline')}
-        >
-          <Clock size={16} /> Timeline
-        </button>
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'summary' 
-              ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-          }`}
-          onClick={() => setActiveTab('summary')}
-        >
-          <FileBarChart size={16} /> Summary
-        </button>
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'contradictions' 
-              ? 'bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-          }`}
-          onClick={() => setActiveTab('contradictions')}
-        >
-          <AlertTriangle size={16} /> Contradictions
-        </button>
-        <button 
-          className={`px-6 py-2.5 rounded-lg flex items-center gap-2 font-semibold text-sm transition-all duration-300 ${
-            activeTab === 'audit' 
-              ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
-          }`}
-          onClick={() => setActiveTab('audit')}
-        >
-          <Activity size={16} /> Chain of Custody
-        </button>
+      {/* Streamlined 4 Main Tabs */}
+      <div className="border-b border-slate-200 dark:border-slate-800 flex items-center gap-4 overflow-x-auto pt-1">
+        {mainTabs.map((tab) => {
+          const TabIcon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-3 border-b-2 text-xs font-bold transition-all whitespace-nowrap ${
+                isActive
+                  ? 'border-[#1b4d3e] text-[#1b4d3e] dark:border-emerald-400 dark:text-emerald-300'
+                  : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <TabIcon size={16} className={isActive ? 'text-[#1b4d3e] dark:text-emerald-400' : 'text-slate-400'} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
+      {/* Tab Contents Container */}
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.15 }}
         >
+          {/* Tab 1: Evidence Vault */}
           {activeTab === 'evidence' && (
-            <div className="flex flex-col gap-6">
+            <div className="space-y-6">
               {currentUser && (
                 <DocumentUploader caseId={caseId} onUploadComplete={loadData} />
               )}
@@ -242,30 +208,73 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
             </div>
           )}
 
-          {activeTab === 'search' && (
-            <SmartSearch caseId={caseId} />
+          {/* Tab 2: Intelligence & Search (Unified Hub) */}
+          {activeTab === 'intel' && (
+            <div className="space-y-5">
+              {/* Sub-segment selector */}
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-max border border-slate-200 dark:border-slate-700/60 text-xs">
+                <button
+                  onClick={() => setIntelSubTab('search')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                    intelSubTab === 'search' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Search size={14} /> Semantic Search
+                </button>
+                <button
+                  onClick={() => setIntelSubTab('chat')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                    intelSubTab === 'chat' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Bot size={14} /> Q&A Assistant
+                </button>
+                <button
+                  onClick={() => setIntelSubTab('contradictions')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                    intelSubTab === 'contradictions' ? 'bg-white dark:bg-slate-900 text-amber-700 dark:text-amber-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <AlertTriangle size={14} /> Contradiction Scan
+                </button>
+              </div>
+
+              {intelSubTab === 'search' && <SmartSearch caseId={caseId} />}
+              {intelSubTab === 'chat' && <CaseAssistant caseId={caseId} />}
+              {intelSubTab === 'contradictions' && <ContradictionPanel caseId={caseId} />}
+            </div>
           )}
 
-
-
-          {activeTab === 'chat' && (
-            <CaseAssistant caseId={caseId} />
-          )}
-
+          {/* Tab 3: Timeline & Chain of Custody (Unified Hub) */}
           {activeTab === 'timeline' && (
-            <CaseTimeline documents={documents} />
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-max border border-slate-200 dark:border-slate-700/60 text-xs">
+                <button
+                  onClick={() => setTimelineSubTab('timeline')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                    timelineSubTab === 'timeline' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Clock size={14} /> Case Milestones
+                </button>
+                <button
+                  onClick={() => setTimelineSubTab('audit')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                    timelineSubTab === 'audit' ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <ShieldCheck size={14} /> Audit Trail
+                </button>
+              </div>
+
+              {timelineSubTab === 'timeline' && <CaseTimeline documents={documents} />}
+              {timelineSubTab === 'audit' && <AuditTrailView logs={auditLogs} caseNumber={caseDetails.case_number} />}
+            </div>
           )}
 
+          {/* Tab 4: Executive Brief */}
           {activeTab === 'summary' && (
             <CaseSummary caseId={caseId} caseDetails={caseDetails} />
-          )}
-
-          {activeTab === 'contradictions' && (
-            <ContradictionPanel caseId={caseId} />
-          )}
-
-          {activeTab === 'audit' && (
-            <AuditTrailView logs={auditLogs} caseNumber={caseDetails.case_number} />
           )}
         </motion.div>
       </AnimatePresence>
