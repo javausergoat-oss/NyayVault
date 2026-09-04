@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { findContradictions } from '../services/api';
-import { AlertTriangle, Loader2, ShieldCheck, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Loader2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ContradictionPanel({ caseId }) {
@@ -23,29 +23,29 @@ export default function ContradictionPanel({ caseId }) {
 
   return (
     <div className="space-y-6">
-      <div className="card p-6 border border-border shadow-sm rounded-2xl bg-card">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <AlertTriangle className="text-amber-500" />
-              AI Contradiction Analysis
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+              <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400" />
+              Contradiction & Discrepancy Analysis
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Cross-references all case documents to identify logical, factual, or temporal discrepancies.
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Cross-references witness statements, timestamps, and evidence records for factual conflicts.
             </p>
           </div>
           <button
             onClick={runAnalysis}
             disabled={loading}
-            className="btn-primary py-2 px-6 rounded-xl font-semibold shadow-md flex items-center gap-2 disabled:opacity-50"
+            className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 transition-colors"
           >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <AlertTriangle size={18} />}
-            {contradictions === null ? 'Run Analysis' : 'Re-Run Analysis'}
+            {loading ? <Loader2 className="animate-spin" size={16} /> : <AlertTriangle size={16} />}
+            {contradictions === null ? 'Analyze Discrepancies' : 'Re-Analyze'}
           </button>
         </div>
 
         {error && (
-          <div className="mt-6 p-4 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-xl">
+          <div className="mt-4 p-3 bg-rose-50 text-rose-700 dark:bg-rose-950/40 text-xs rounded-xl border border-rose-200 dark:border-rose-900/30 font-semibold">
             {error}
           </div>
         )}
@@ -53,44 +53,37 @@ export default function ContradictionPanel({ caseId }) {
         <AnimatePresence>
           {contradictions !== null && !loading && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="mt-6 space-y-4 overflow-hidden"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 space-y-4"
             >
               {contradictions.length === 0 ? (
-                <div className="p-8 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-xl text-center border border-emerald-200 dark:border-emerald-800/50">
-                  <ShieldCheck size={32} className="mx-auto mb-3" />
-                  <h4 className="font-bold text-lg">No Contradictions Found</h4>
-                  <p className="text-sm mt-1">The AI verified all documents and found no conflicting information.</p>
+                <div className="p-6 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-xl text-center border border-emerald-200 dark:border-emerald-900/30 text-xs">
+                  <ShieldCheck size={28} className="mx-auto mb-2 text-emerald-600" />
+                  <h4 className="font-bold text-sm">No Document Contradictions Detected</h4>
+                  <p className="mt-0.5 text-slate-600 dark:text-slate-400">All cross-referenced timestamps, statements, and evidence facts are consistent.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {contradictions.map((c, idx) => (
-                    <motion.div 
+                    <div 
                       key={idx}
-                      initial={{ x: -20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="p-5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-xl"
+                      className="p-4 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl text-xs space-y-2"
                     >
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="text-red-500 mt-1 flex-shrink-0" size={20} />
+                      <div className="flex items-start gap-2.5">
+                        <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={16} />
                         <div>
-                          <h4 className="font-bold text-red-900 dark:text-red-300">
+                          <h4 className="font-bold text-amber-900 dark:text-amber-300 text-xs">
                             {c.description}
                           </h4>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 text-sm text-red-700 dark:text-red-400">
-                            <span className="font-semibold bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded">
-                              {c.doc1}
-                            </span>
-                            <span className="hidden sm:inline">vs</span>
-                            <span className="font-semibold bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded">
-                              {c.doc2}
-                            </span>
+                          <div className="flex items-center gap-2 mt-2 font-mono text-[11px] text-amber-800 dark:text-amber-400">
+                            <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 font-bold">{c.doc1}</span>
+                            <span>vs</span>
+                            <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 font-bold">{c.doc2}</span>
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}

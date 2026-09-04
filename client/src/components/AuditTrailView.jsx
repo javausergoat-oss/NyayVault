@@ -1,5 +1,4 @@
-import { Activity, Clock, Download } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Activity, Clock, Download, ShieldCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -9,30 +8,27 @@ export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
     try {
       const doc = new jsPDF();
       
-      // Header
-      doc.setFontSize(22);
-      doc.setTextColor(15, 23, 42); // slate-900
-      doc.text('Chain of Custody Audit Report', 14, 22);
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42);
+      doc.text('Chain of Custody Audit Report', 14, 20);
       
-      doc.setFontSize(11);
-      doc.setTextColor(100, 116, 139); // slate-500
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
-      doc.text(`Case Number: ${caseNumber}`, 14, 36);
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 28);
+      doc.text(`Case Number: ${caseNumber}`, 14, 34);
 
-      // Official Seal / Disclaimer
-      doc.setFontSize(9);
-      doc.setTextColor(185, 28, 28); // red-700
-      doc.text('CONFIDENTIAL & COURT-ADMISSIBLE: This document contains a cryptographically secure audit trail.', 14, 46);
+      doc.setFontSize(8);
+      doc.setTextColor(185, 28, 28);
+      doc.text('CONFIDENTIAL & COURT-ADMISSIBLE: Cryptographically verified audit log.', 14, 42);
 
-      // Table Data
-      const tableColumn = ["Timestamp", "Action", "Officer / User", "IP Address", "Log ID"];
+      const tableColumn = ["Timestamp", "Action", "Officer / Actor", "IP Address", "Audit Log ID"];
       const tableRows = [];
 
       logs.forEach(log => {
         const badge = log.badge_number || log.user_badge || 'SYSTEM';
         const role = log.user_role ? log.user_role.replace('_', ' ') : 'AUTOMATED';
         const rowData = [
-          new Date(log.timestamp).toLocaleString(),
+          new Date(log.timestamp).toLocaleString('en-IN'),
           log.action,
           `${badge} (${role})`,
           log.ip_address || 'Internal',
@@ -41,32 +37,30 @@ export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
         tableRows.push(rowData);
       });
 
-      // Generate Table
       doc.autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: 52,
-      theme: 'grid',
-      headStyles: { fillColor: [30, 41, 59] }, // slate-800
-      styles: { fontSize: 8, cellPadding: 3 },
-      alternateRowStyles: { fillColor: [248, 250, 252] } // slate-50
-    });
+        head: [tableColumn],
+        body: tableRows,
+        startY: 48,
+        theme: 'grid',
+        headStyles: { fillColor: [27, 77, 62] },
+        styles: { fontSize: 8, cellPadding: 3 },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
 
-    // Footer
-    const pageCount = doc.internal.getNumberOfPages();
-    for(let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184); // slate-400
-      doc.text(
-        `Page ${i} of ${pageCount} - SIH Evidence Vault System`,
-        doc.internal.pageSize.getWidth() / 2, 
-        doc.internal.pageSize.getHeight() - 10,
-        { align: 'center' }
-      );
-    }
+      const pageCount = doc.internal.getNumberOfPages();
+      for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(
+          `Page ${i} of ${pageCount} - Nyay Vault Audit System`,
+          doc.internal.pageSize.getWidth() / 2, 
+          doc.internal.pageSize.getHeight() - 10,
+          { align: 'center' }
+        );
+      }
 
-      doc.save(`Audit_Report_${caseNumber}.pdf`);
+      doc.save(`Chain_of_Custody_${caseNumber}.pdf`);
     } catch (e) {
       console.error("PDF Generation Error:", e);
       alert("Failed to generate PDF: " + e.message);
@@ -75,62 +69,59 @@ export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
 
   if (!logs || logs.length === 0) {
     return (
-      <div className="card p-12 text-center text-slate-500 dark:text-slate-400 border border-dashed border-border rounded-2xl">
-        <Activity size={48} className="mx-auto mb-4 opacity-50" />
-        <p className="text-lg">No audit events recorded yet.</p>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-400">
+        <Activity size={36} className="mx-auto mb-2 opacity-30" />
+        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Audit Events Logged</p>
       </div>
     );
   }
 
   return (
-    <div className="card p-8 rounded-2xl border border-border shadow-sm bg-card relative overflow-hidden">
-      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-      
-      <div className="flex justify-between items-center mb-8 relative z-10">
-        <h3 className="text-2xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">
-          <Activity className="text-emerald-500" /> Immutable Chain of Custody
-        </h3>
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+      <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div>
+          <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <ShieldCheck size={18} className="text-emerald-600 dark:text-emerald-400" /> Immutable Chain of Custody
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Cryptographically logged evidence events and officer access records.</p>
+        </div>
         <button 
           onClick={generatePDF}
-          className="btn-primary flex items-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+          className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
         >
-          <Download size={16} /> Export Official PDF
+          <Download size={14} /> Export Audit PDF
         </button>
       </div>
       
-      <div className="flex flex-col gap-4 relative z-10">
-        {logs.map((log, index) => (
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
+      <div className="space-y-2.5">
+        {logs.map((log) => (
+          <div 
             key={log.id} 
-            className="flex items-start gap-4 p-4 border border-border rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+            className="flex items-center justify-between p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-800/40 text-xs"
           >
-            <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full shrink-0">
-              <Clock size={20} />
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between items-start">
-                <p className="font-bold text-slate-900 dark:text-slate-100">{log.action}</p>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
-                  {new Date(log.timestamp).toLocaleString()}
-                </span>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-lg shrink-0">
+                <Clock size={16} />
               </div>
-              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-                Performed by <span className="font-semibold">{log.badge_number || log.user_badge || 'SYSTEM'} ({log.user_role ? log.user_role.replace('_', ' ') : 'AUTOMATED'})</span>
-              </p>
-              
-              <div className="mt-3 flex gap-2 flex-wrap">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
-                  IP: {log.ip_address}
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
-                  Log ID: {log.id.split('-')[0]}
-                </span>
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white leading-tight">{log.action}</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Actor: <strong className="text-slate-700 dark:text-slate-300">{log.badge_number || log.user_badge || 'SYSTEM'}</strong> ({log.user_role ? log.user_role.replace('_', ' ') : 'AUTOMATED'})
+                </p>
               </div>
             </div>
-          </motion.div>
+
+            <div className="text-right space-y-1">
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block">
+                {new Date(log.timestamp).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <div className="flex items-center gap-2 justify-end text-[10px] text-slate-400 font-mono">
+                <span>IP: {log.ip_address}</span>
+                <span>•</span>
+                <span>ID: {log.id.split('-')[0]}</span>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>

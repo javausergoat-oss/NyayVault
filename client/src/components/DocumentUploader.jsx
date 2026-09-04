@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { UploadCloud, File as FileIcon, X, Loader2, ShieldCheck, CheckCircle } from 'lucide-react';
+import { UploadCloud, File as FileIcon, X, Loader2, ShieldCheck, CheckCircle, Folder } from 'lucide-react';
 import { uploadDocument } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -37,7 +37,6 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
     setUploading(true);
     
     try {
-      // Upload files sequentially to reuse existing endpoint and show progress
       for (let i = 0; i < files.length; i++) {
         setUploadProgress({ current: i + 1, total: files.length });
         await uploadDocument(caseId, files[i]);
@@ -53,17 +52,14 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
   };
 
   return (
-    <div className="card p-8 bg-card border border-border shadow-lg rounded-2xl relative overflow-hidden group">
-      {/* Subtle background glow effect */}
-      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none group-hover:bg-blue-500/20 transition-all duration-700" />
-      
-      <div className="flex items-center justify-between mb-8 relative z-10">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Secure Batch Upload</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Upload multiple evidence files for AI extraction and secure hashing.</p>
+          <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Secure Batch Evidence Upload</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Upload digital evidence files for cryptographic hashing and classification.</p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-semibold">
-          <ShieldCheck size={14} /> SHA-256 Active
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#edf7f2] dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/30 text-[#1b4d3e] dark:text-emerald-400 text-xs font-bold">
+          <ShieldCheck size={15} /> SHA-256 Active
         </div>
       </div>
       
@@ -73,32 +69,40 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
-          className={`relative z-10 border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 flex flex-col items-center justify-center cursor-pointer overflow-hidden ${
+          className={`border-2 border-dashed rounded-xl p-8 transition-all flex flex-col md:flex-row items-center justify-between gap-6 cursor-pointer ${
             dragActive 
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 shadow-inner' 
-              : 'border-slate-300 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+              ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' 
+              : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
           }`}
           onClick={() => document.getElementById('file-upload').click()}
         >
-          {dragActive && (
-            <motion.div 
-              layoutId="glow"
-              className="absolute inset-0 bg-blue-500/10 dark:bg-blue-500/20 blur-2xl"
-            />
-          )}
-          <motion.div 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`p-4 rounded-full mb-4 transition-colors ${dragActive ? 'bg-blue-100 text-blue-600 dark:bg-blue-800 dark:text-blue-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}
+          <div className="flex-1 flex flex-col items-center text-center">
+            <div className="w-14 h-14 rounded-full bg-[#edf7f2] dark:bg-emerald-950/60 text-[#1b4d3e] dark:text-emerald-400 flex items-center justify-center mb-3">
+              <UploadCloud size={28} />
+            </div>
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-0.5">
+              Drag & drop multiple files here
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              or click to <span className="text-[#1b4d3e] dark:text-emerald-400 font-semibold underline">browse</span> files
+            </p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4">
+              Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, MP4, MOV, WAV, CSV <span className="mx-1">|</span> Max file size: 2 GB (per file)
+            </p>
+          </div>
+
+          <button 
+            type="button"
+            className="px-5 py-2.5 rounded-xl bg-[#1b4d3e] hover:bg-[#143c30] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              document.getElementById('file-upload').click();
+            }}
           >
-            <UploadCloud size={32} />
-          </motion.div>
-          <p className="text-lg font-medium text-slate-700 dark:text-slate-200 mb-2">
-            Drag & drop multiple files here
-          </p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            or click to browse from your device
-          </p>
+            <Folder size={16} />
+            Browse Files
+          </button>
+
           <input 
             id="file-upload"
             type="file" 
@@ -108,103 +112,66 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
               if (e.target.files && e.target.files.length > 0) {
                 setFiles(prev => [...prev, ...Array.from(e.target.files)]);
               }
-              e.target.value = null; // reset so same file can be selected again
+              e.target.value = null;
             }}
           />
         </div>
       ) : (
         <AnimatePresence>
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="border border-border rounded-xl bg-slate-50 dark:bg-slate-800/50 relative z-10 overflow-hidden"
+            exit={{ opacity: 0, scale: 0.98 }}
+            className="border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800/40 overflow-hidden"
           >
-            <div className="max-h-60 overflow-y-auto p-4 space-y-3">
+            <div className="max-h-60 overflow-y-auto p-3 space-y-2">
               {files.map((file, idx) => (
-                <div key={`${file.name}-${idx}`} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                <div key={`${file.name}-${idx}`} className="flex items-center justify-between p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 text-xs">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
-                      <FileIcon size={18} />
+                    <div className="p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md">
+                      <FileIcon size={16} />
                     </div>
                     <div>
-                      <p className="font-semibold text-sm text-slate-900 dark:text-white line-clamp-1">{file.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="font-bold text-slate-900 dark:text-white line-clamp-1">{file.name}</p>
+                      <p className="text-[11px] text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
                   {!uploading && (
                     <button 
                       onClick={() => removeFile(idx)}
-                      className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600 rounded-full text-slate-400 transition-colors"
+                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
                     >
-                      <X size={16} />
+                      <X size={15} />
                     </button>
                   )}
                   {uploading && idx < uploadProgress.current - 1 && (
-                    <CheckCircle className="text-emerald-500" size={18} />
+                    <CheckCircle className="text-emerald-500" size={16} />
                   )}
                   {uploading && idx === uploadProgress.current - 1 && (
-                    <Loader2 className="animate-spin text-blue-500" size={18} />
+                    <Loader2 className="animate-spin text-emerald-500" size={16} />
                   )}
                 </div>
               ))}
             </div>
 
-            {/* Upload More Button (if not uploading) */}
-            {!uploading && (
-              <div className="px-4 pb-4">
+            <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 text-xs">
+              <span className="font-medium text-slate-600 dark:text-slate-400">
+                {uploading ? `Uploading ${uploadProgress.current} of ${uploadProgress.total} files...` : `${files.length} file(s) queued`}
+              </span>
+              <div className="flex gap-2">
                 <button 
-                  onClick={() => document.getElementById('file-upload-more').click()}
-                  className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-                >
-                  + Add more files
-                </button>
-                <input 
-                  id="file-upload-more"
-                  type="file" 
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      setFiles(prev => [...prev, ...Array.from(e.target.files)]);
-                    }
-                    e.target.value = null;
-                  }}
-                />
-              </div>
-            )}
-            
-            <div className="flex justify-between items-center p-4 bg-slate-100 dark:bg-slate-800 border-t border-border">
-              <div className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                {uploading ? (
-                  <span className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                    <Loader2 size={16} className="animate-spin" />
-                    Uploading {uploadProgress.current} of {uploadProgress.total} files...
-                  </span>
-                ) : (
-                  <span>{files.length} file{files.length > 1 ? 's' : ''} selected</span>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <button 
-                  className="btn-outline px-4 py-2 rounded-lg font-medium text-sm disabled:opacity-50" 
+                  className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold" 
                   onClick={() => setFiles([])}
                   disabled={uploading}
                 >
-                  Cancel All
+                  Cancel
                 </button>
                 <button 
-                  className="btn-primary flex items-center gap-2 px-6 py-2 rounded-lg font-bold text-sm shadow-md shadow-blue-500/20 disabled:opacity-70"
+                  className="px-4 py-1.5 rounded-lg bg-[#1b4d3e] hover:bg-[#143c30] text-white font-bold disabled:opacity-50"
                   onClick={handleUpload}
                   disabled={uploading}
                 >
-                  {uploading ? (
-                    'Processing...'
-                  ) : (
-                    <>
-                      <UploadCloud size={16} /> Confirm Upload
-                    </>
-                  )}
+                  {uploading ? 'Processing...' : 'Upload Evidence'}
                 </button>
               </div>
             </div>
