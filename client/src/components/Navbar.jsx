@@ -19,11 +19,11 @@ export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, cur
             <Shield className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 dark:from-blue-400 dark:to-indigo-400 tracking-tight">
-              {t('SIH Vault')}
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Nyay<span className="text-blue-600 dark:text-blue-400">Vault</span>
             </h1>
             <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-slate-400">
-              {t('Evidence System')}
+              Judicial Evidence Vault
             </p>
           </div>
         </div>

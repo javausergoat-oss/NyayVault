@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import TopHeader from './components/TopHeader';
 import CaseList from './components/CaseList';
 import CaseDetail from './components/CaseDetail';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 
 import CrossCaseRadar from './components/CrossCaseRadar';
+import SmartSearch from './components/SmartSearch';
+import MasterTimelineHub from './components/MasterTimelineHub';
+import AuditTrailHub from './components/AuditTrailHub';
+import ReportsHub from './components/ReportsHub';
+import UsersDirectory from './components/UsersDirectory';
+import SettingsHub from './components/SettingsHub';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './hooks/useTranslation';
 
@@ -87,12 +95,9 @@ function AppContent() {
       if (event.state?.view === 'case' && event.state?.caseId) {
         setActiveCaseId(event.state.caseId);
         setActiveView('cases');
-      } else if (event.state?.view === 'radar') {
-        setActiveView('radar');
+      } else if (event.state?.view) {
         setActiveCaseId(null);
-      } else if (event.state?.view === 'cases') {
-        setActiveCaseId(null);
-        setActiveView('cases');
+        setActiveView(event.state.view);
       } else {
         setActiveCaseId(null);
         setActiveView('dashboard');
@@ -100,17 +105,16 @@ function AppContent() {
     };
     
     // Initial state setup if url has hash
-    if (window.location.hash.startsWith('#case/')) {
-      const id = window.location.hash.split('/')[1];
+    const hash = window.location.hash;
+    if (hash.startsWith('#case/')) {
+      const id = hash.split('/')[1];
       setActiveCaseId(id);
       setActiveView('cases');
-      window.history.replaceState({ view: 'case', caseId: id }, '', window.location.hash);
-    } else if (window.location.hash === '#radar') {
-      setActiveView('radar');
-      window.history.replaceState({ view: 'radar' }, '', '#radar');
-    } else if (window.location.hash === '#cases') {
-      setActiveView('cases');
-      window.history.replaceState({ view: 'cases' }, '', '#cases');
+      window.history.replaceState({ view: 'case', caseId: id }, '', hash);
+    } else if (hash && hash.length > 1) {
+      const viewFromHash = hash.substring(1);
+      setActiveView(viewFromHash);
+      window.history.replaceState({ view: viewFromHash }, '', hash);
     } else {
       setActiveView('dashboard');
       window.history.replaceState({ view: 'dashboard' }, '', '/');
@@ -118,6 +122,18 @@ function AppContent() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Global Keyboard Shortcut: Cmd + K / Ctrl + K opens Search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        handleViewChange('search');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleCaseSelect = (id) => {
@@ -145,36 +161,62 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
-      <Navbar 
-        theme={theme} 
-        toggleTheme={toggleTheme} 
-        onCaseSelect={handleCaseSelect} 
-        onLogout={handleLogout} 
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white flex transition-colors duration-300 font-sans selection:bg-emerald-600 selection:text-white">
+      {/* Sidebar Navigation matching user mockup */}
+      <Sidebar 
+        activeView={activeCaseId ? 'cases' : activeView} 
+        onViewChange={(view) => {
+          if (view === 'evidence') {
+            handleViewChange('cases');
+          } else {
+            handleViewChange(view);
+          }
+        }} 
         currentUser={currentUser} 
-        activeView={activeView}
-        onViewChange={handleViewChange}
       />
-      
-      <main className="container mx-auto px-4 py-8">
-        {activeView === 'radar' ? (
-          <CrossCaseRadar />
-        ) : activeCaseId ? (
-          <CaseDetail 
-            caseId={activeCaseId} 
-            onBack={() => {
-              setActiveCaseId(null);
-              setActiveView('cases');
-              window.history.pushState({ view: 'cases' }, '', '#cases');
-            }} 
-            currentUser={currentUser}
-          />
-        ) : activeView === 'dashboard' ? (
-          <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} />
-        ) : (
-          <CaseList onCaseSelect={handleCaseSelect} currentUser={currentUser} />
-        )}
-      </main>
+
+      {/* Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TopHeader 
+          currentUser={currentUser} 
+          theme={theme} 
+          toggleTheme={toggleTheme} 
+          onLogout={handleLogout} 
+          onSearchClick={() => handleViewChange('search')}
+        />
+
+        <main className="flex-1 p-5 sm:p-7 lg:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
+          {activeCaseId ? (
+            <CaseDetail 
+              caseId={activeCaseId} 
+              onBack={() => {
+                setActiveCaseId(null);
+                setActiveView('cases');
+                window.history.pushState({ view: 'cases' }, '', '#cases');
+              }} 
+              currentUser={currentUser}
+            />
+          ) : activeView === 'dashboard' ? (
+            <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} onViewChange={handleViewChange} />
+          ) : activeView === 'search' ? (
+            <SmartSearch onOpenCase={handleCaseSelect} />
+          ) : activeView === 'radar' ? (
+            <CrossCaseRadar />
+          ) : activeView === 'timeline' ? (
+            <MasterTimelineHub onCaseSelect={handleCaseSelect} />
+          ) : activeView === 'audit' ? (
+            <AuditTrailHub />
+          ) : activeView === 'reports' ? (
+            <ReportsHub currentUser={currentUser} />
+          ) : activeView === 'users' ? (
+            <UsersDirectory />
+          ) : activeView === 'settings' ? (
+            <SettingsHub currentUser={currentUser} theme={theme} toggleTheme={toggleTheme} />
+          ) : (
+            <CaseList onCaseSelect={handleCaseSelect} currentUser={currentUser} />
+          )}
+        </main>
+      </div>
       <Analytics />
     </div>
   );

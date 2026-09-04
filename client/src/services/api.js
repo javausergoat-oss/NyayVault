@@ -60,6 +60,10 @@ export async function getCaseAuditTrail(caseId) {
   return fetchApi(`/cases/${caseId}/audit-trail`);
 }
 
+export async function getGlobalAuditLogs(limit = 100) {
+  return fetchApi(`/audit?limit=${limit}`);
+}
+
 export async function uploadDocument(caseId, file) {
   const formData = new FormData();
   formData.append('file', file);

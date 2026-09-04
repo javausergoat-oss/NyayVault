@@ -91,7 +91,7 @@ router.get('/:documentId/audit-trail', async (req, res, next) => {
  * POST /api/documents/:documentId/redact/suggest
  * Uses AI to suggest PII redactions for the document's extracted text.
  */
-router.post('/:documentId/redact/suggest', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR']), async (req, res, next) => {
+router.post('/:documentId/redact/suggest', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR', 'JUDICIAL_OFFICER', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE']), async (req, res, next) => {
   try {
     const document = await getDocumentById(req.params.documentId);
     if (!document.extracted_text) {
@@ -108,7 +108,7 @@ router.post('/:documentId/redact/suggest', requireRole(['INVESTIGATING_OFFICER',
  * POST /api/documents/:documentId/redact/apply
  * Applies approved redactions, creates a new redacted document in MinIO and Postgres, and logs audit events.
  */
-router.post('/:documentId/redact/apply', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR']), async (req, res, next) => {
+router.post('/:documentId/redact/apply', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR', 'JUDICIAL_OFFICER', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE']), async (req, res, next) => {
   try {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const { redactions } = req.body;

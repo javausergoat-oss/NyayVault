@@ -281,7 +281,7 @@ export async function downloadDocument(documentId, user, ipAddress = '127.0.0.1'
   return {
     stream,
     filename: doc.filename,
-    contentType: doc.mime_type || contentType,
+    contentType: doc.mime_type || contentType || 'application/octet-stream',
     contentLength: doc.file_size || contentLength,
     sha256Hash: doc.sha256_hash,
   };
