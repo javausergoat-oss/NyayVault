@@ -201,7 +201,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafd] dark:bg-slate-950 text-slate-800 dark:text-white flex transition-colors duration-300 font-sans selection:bg-blue-600 selection:text-white relative overflow-x-hidden">
+    <div className="h-screen w-screen overflow-hidden bg-[#f8fafd] dark:bg-slate-950 text-slate-800 dark:text-white flex transition-colors duration-300 font-sans selection:bg-blue-600 selection:text-white relative">
       {/* Soft abstract ambient curves matching Login screen */}
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-100/50 via-indigo-50/30 to-transparent dark:from-blue-950/20 dark:via-transparent rounded-full blur-3xl pointer-events-none -mr-40 -mt-40 z-0" />
       <div className="fixed bottom-0 left-64 w-[500px] h-[500px] bg-gradient-to-tr from-blue-100/60 via-sky-50/30 to-transparent dark:from-blue-950/20 dark:via-transparent rounded-full blur-3xl pointer-events-none -ml-20 -mb-40 z-0" />
@@ -216,7 +216,7 @@ function AppContent() {
       />
 
       {/* Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10">
         <TopHeader 
           currentUser={currentUser} 
           theme={theme} 

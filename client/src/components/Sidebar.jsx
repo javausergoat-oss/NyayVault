@@ -63,68 +63,74 @@ export default function Sidebar({ activeView, onViewChange, currentUser, mobileO
   };
 
   const SidebarContent = ({ isMobile = false }) => (
-    <div className="flex flex-col justify-between h-full w-full">
+    <div className="flex flex-col h-full w-full">
       {/* Top Brand / Logo */}
-      <div>
-        <div className="p-5 pb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#0e1d3e] text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-950/20">
-              <Scale size={20} className="stroke-[1.9]" />
-            </div>
-            <div>
-              <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
-                Nyay<span className="text-blue-600">Vault</span>
-              </h1>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
-                {t('Secure Evidence Portal')}
-              </p>
-            </div>
+      <div className="p-5 pb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#0e1d3e] text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-950/20">
+            <Scale size={20} className="stroke-[1.9]" />
           </div>
-          {isMobile && (
-            <button 
-              onClick={onCloseMobile}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              title="Close navigation"
-            >
-              <X size={20} />
-            </button>
-          )}
+          <div>
+            <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+              Nyay<span className="text-blue-600">Vault</span>
+            </h1>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+              {t('Secure Evidence Portal')}
+            </p>
+          </div>
         </div>
-
-        {/* Navigation Items */}
-        <nav className="p-3 space-y-1">
-          {filteredNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id || (item.id === 'cases' && activeView === 'case');
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleNavClick(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 shadow-2xs font-bold border border-blue-100 dark:border-blue-900/40'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                <Icon size={17} className={isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'} />
-                <span>{t(item.label)}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {isMobile && (
+          <button 
+            onClick={onCloseMobile}
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Close navigation"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
+      {/* Navigation Items (Scrollable internally if needed) */}
+      <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
+        {filteredNavItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeView === item.id || (item.id === 'cases' && activeView === 'case');
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => handleNavClick(item.id)}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 shadow-2xs font-bold border border-blue-100 dark:border-blue-900/40'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Icon size={17} className={isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'} />
+              <span>{t(item.label)}</span>
+            </button>
+          );
+        })}
+      </nav>
 
-      {/* Bottom Legal Watermark */}
-      <div className="p-5 border-t border-slate-100 dark:border-slate-800/80 flex flex-col items-center text-center">
-        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center mb-2">
-          <Landmark size={20} className="stroke-[1.6]" />
+      {/* Bottom Legal Watermark / GovTech Card - Always pinned flush to bottom */}
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800/80 shrink-0 mt-auto bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="p-3 rounded-2xl bg-white dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/60 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100/60 dark:border-blue-900/40">
+              <Landmark size={16} className="stroke-[1.8]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate leading-tight">
+                {t('Towards Data-Driven Justice')}
+              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-[9px] text-slate-400 font-mono tracking-wider truncate">SIH-26190 GovTech</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 leading-tight">
-          {t('Towards Data-Driven Justice')}
-        </p>
-        <span className="text-[9px] text-slate-400 font-mono mt-0.5">SIH-26190 GovTech</span>
       </div>
     </div>
   );
@@ -132,7 +138,7 @@ export default function Sidebar({ activeView, onViewChange, currentUser, mobileO
   return (
     <>
       {/* Desktop Persistent Sidebar (>= lg) */}
-      <aside className="hidden lg:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col justify-between shrink-0 h-screen sticky top-0 select-none z-30 transition-colors">
+      <aside className="hidden lg:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 h-full select-none z-30 transition-colors">
         <SidebarContent />
       </aside>
 
