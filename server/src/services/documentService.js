@@ -379,8 +379,43 @@ export async function applyRedactionsToDocument(documentId, redactions, user, ip
   return newDocRecord;
 }
 
+export const GLOBAL_EVIDENCE_ROLES = [
+  'REGISTRAR', 
+  'COURT_REGISTRAR', 
+  'FORENSIC_EXAMINER', 
+  'FORENSIC', 
+  'CUSTODIAN', 
+  'ADMIN'
+];
+
 /**
- * Retrieves all evidence documents across all cases with case and uploader metadata.
+ * Validates whether a user is authorized to inspect, download, or verify a document.
+ * Global authorities have unrestricted access.
+ * Case-restricted roles (Police, Judges, Defense/Prosecution Lawyers) are strictly confined to their assigned case dockets.
+ */
+export async function checkDocumentAccess(documentId, user) {
+  if (!user) return false;
+  if (GLOBAL_EVIDENCE_ROLES.includes(user.role)) return true;
+
+  const sql = `
+    SELECT 1 FROM documents d
+    JOIN cases c ON d.case_id = c.id
+    WHERE d.id = $1 AND (
+      c.created_by = $2
+      OR EXISTS (
+        SELECT 1 FROM case_assignments ca 
+        WHERE ca.case_id = d.case_id AND ca.user_id = $2
+      )
+    );
+  `;
+  const res = await query(sql, [documentId, user.id]);
+  return res.rows.length > 0;
+}
+
+/**
+ * Retrieves evidence documents.
+ * For global roles (Registrar, Forensics, Custodian, Admin), returns all documents across the system.
+ * For case-restricted roles (Police, Judges, Lawyers), returns ONLY documents belonging to cases they own or are assigned to.
  */
 export async function listAllDocuments(user = null) {
   let sql = `
@@ -411,11 +446,21 @@ export async function listAllDocuments(user = null) {
     LEFT JOIN cases c ON d.case_id = c.id
   `;
   const params = [];
-  if (user && user.role === 'INVESTIGATING_OFFICER') {
-    sql += ` WHERE d.document_category = 'INVESTIGATION'`;
+  const conditions = [];
+
+  // Strict Judicial Boundary: Non-custodians only see documents from cases they own or are assigned to
+  if (user && !GLOBAL_EVIDENCE_ROLES.includes(user.role)) {
+    params.push(user.id);
+    conditions.push(`(c.created_by = $${params.length} OR EXISTS (SELECT 1 FROM case_assignments ca WHERE ca.case_id = d.case_id AND ca.user_id = $${params.length}))`);
   }
+
+  if (conditions.length > 0) {
+    sql += ` WHERE ` + conditions.join(' AND ');
+  }
+
   sql += ` ORDER BY d.uploaded_at DESC;`;
 
   const res = await query(sql, params);
   return res.rows;
 }
+

@@ -4,7 +4,9 @@ import {
   verifyDocumentIntegrity,
   downloadDocument,
   applyRedactionsToDocument,
-  listAllDocuments
+  listAllDocuments,
+  checkDocumentAccess,
+  GLOBAL_EVIDENCE_ROLES
 } from '../services/documentService.js';
 import { getDocumentAuditLogs } from '../services/auditService.js';
 import { suggestRedactions } from '../services/aiService.js';
@@ -13,11 +15,36 @@ import { requireRole } from '../middleware/roleMiddleware.js';
 const router = express.Router();
 
 /**
+ * Middleware: Enforces that non-custodial roles can only access documents belonging to their assigned cases.
+ */
+const verifyDocAccess = async (req, res, next) => {
+  try {
+    const hasAccess = await checkDocumentAccess(req.params.documentId, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({
+        error: 'Forbidden: Access denied. Evidence exhibits are strictly restricted to assigned case dockets.',
+        documentId: req.params.documentId
+      });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * GET /api/documents
- * Returns all evidence documents across cases.
+ * Returns evidence documents. If user is Police, Judge, or Lawyer, results are strictly scoped to their assigned cases.
+ * If ?scope=global is specified, non-custodians are rejected with 403.
  */
 router.get('/', async (req, res, next) => {
   try {
+    if (req.query.scope === 'global' && !GLOBAL_EVIDENCE_ROLES.includes(req.user?.role)) {
+      return res.status(403).json({
+        error: 'Forbidden: Global Evidence Vault is restricted to Court Registrars, Forensic Examiners, and Custodians. Access exhibits through your assigned cases.'
+      });
+    }
+
     const documents = await listAllDocuments(req.user);
     res.json({
       success: true,
@@ -31,9 +58,9 @@ router.get('/', async (req, res, next) => {
 
 /**
  * GET /api/documents/:documentId
- * Returns metadata of a specific document.
+ * Returns metadata of a specific document (protected by case assignment check).
  */
-router.get('/:documentId', async (req, res, next) => {
+router.get('/:documentId', verifyDocAccess, async (req, res, next) => {
   try {
     const document = await getDocumentById(req.params.documentId);
     res.json({
@@ -50,7 +77,7 @@ router.get('/:documentId', async (req, res, next) => {
  * Live Cryptographic Integrity Check:
  * Reads raw bytes directly from MinIO, computes fresh SHA-256 hash, and compares with PostgreSQL record.
  */
-router.get('/:documentId/verify', async (req, res, next) => {
+router.get('/:documentId/verify', verifyDocAccess, async (req, res, next) => {
   try {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const result = await verifyDocumentIntegrity(req.params.documentId, req.user, ipAddress);
@@ -69,7 +96,7 @@ router.get('/:documentId/verify', async (req, res, next) => {
  * Authorized evidence retrieval:
  * Streams file from MinIO object storage, logs chain of custody access.
  */
-router.get('/:documentId/download', async (req, res, next) => {
+router.get('/:documentId/download', verifyDocAccess, async (req, res, next) => {
   try {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const { stream, filename, contentType, contentLength, sha256Hash } =
@@ -92,7 +119,7 @@ router.get('/:documentId/download', async (req, res, next) => {
  * GET /api/documents/:documentId/audit-trail
  * Returns chain-of-custody audit logs for this specific document.
  */
-router.get('/:documentId/audit-trail', async (req, res, next) => {
+router.get('/:documentId/audit-trail', verifyDocAccess, async (req, res, next) => {
   try {
     const logs = await getDocumentAuditLogs(req.params.documentId);
     res.json({
@@ -109,7 +136,7 @@ router.get('/:documentId/audit-trail', async (req, res, next) => {
  * POST /api/documents/:documentId/redact/suggest
  * Uses AI to suggest PII redactions for the document's extracted text.
  */
-router.post('/:documentId/redact/suggest', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR', 'JUDICIAL_OFFICER', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE']), async (req, res, next) => {
+router.post('/:documentId/redact/suggest', verifyDocAccess, requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR', 'JUDICIAL_OFFICER', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE']), async (req, res, next) => {
   try {
     const document = await getDocumentById(req.params.documentId);
     if (!document.extracted_text) {
@@ -126,7 +153,7 @@ router.post('/:documentId/redact/suggest', requireRole(['INVESTIGATING_OFFICER',
  * POST /api/documents/:documentId/redact/apply
  * Applies approved redactions, creates a new redacted document in MinIO and Postgres, and logs audit events.
  */
-router.post('/:documentId/redact/apply', requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR', 'JUDICIAL_OFFICER', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE']), async (req, res, next) => {
+router.post('/:documentId/redact/apply', verifyDocAccess, requireRole(['INVESTIGATING_OFFICER', 'FORENSIC_EXAMINER', 'ADMIN', 'SENIOR_OFFICER', 'REGISTRAR', 'JUDICIAL_OFFICER', 'LAWYER_PROSECUTION', 'LAWYER_DEFENSE']), async (req, res, next) => {
   try {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const { redactions } = req.body;

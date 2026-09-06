@@ -46,123 +46,6 @@ const CATEGORY_MAP = {
   GENERAL: { label: 'General Exhibits', badge: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700' }
 };
 
-const DEFAULT_FALLBACK_EVIDENCE = [
-  {
-    id: 'doc-fir-0045',
-    case_id: 'c1',
-    case_number: 'CR-2026-0045',
-    case_title: 'Theft Investigation',
-    filename: 'FIR_0045_Seizure_Memo.pdf',
-    document_type: 'FIR',
-    document_category: 'INVESTIGATION',
-    mime_type: 'application/pdf',
-    file_size: 1420000,
-    sha256_hash: '8f4e2b10a9c7d6e543210fedcba9876543210abcdef1234567890abcdef12345',
-    status: 'processed',
-    uploaded_at: '2026-09-04T09:12:00Z',
-    uploaded_by_name: 'Insp. Ramesh Sharma',
-    uploaded_by_badge: 'POL-104',
-    uploaded_by_department: 'Crime Branch Unit 1',
-    is_redacted: false,
-    extracted_text: 'FIRST INFORMATION REPORT (Under Section 154 Cr.P.C. / BNSS). Police Station: Cyber Crime Division. Seizure memo recorded for electronic records seized at premise.'
-  },
-  {
-    id: 'doc-forensic-0042',
-    case_id: 'c2',
-    case_number: 'CR-2026-0042',
-    case_title: 'Cyber Fraud Case',
-    filename: 'Forensic_Digital_Extraction_Report.pdf',
-    document_type: 'FORENSIC_REPORT',
-    document_category: 'INVESTIGATION',
-    mime_type: 'application/pdf',
-    file_size: 2850000,
-    sha256_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    status: 'processed',
-    uploaded_at: '2026-09-04T08:45:00Z',
-    uploaded_by_name: 'Dr. Neha Verma',
-    uploaded_by_badge: 'FSL-88',
-    uploaded_by_department: 'Central Forensic Science Lab',
-    is_redacted: false,
-    extracted_text: 'EXAMINATION REPORT: Hard drive image bit-stream copy verified. Cryptographic hash matches original target media. Malware executable vectors analyzed.'
-  },
-  {
-    id: 'doc-cctv-0045',
-    case_id: 'c1',
-    case_number: 'CR-2026-0045',
-    case_title: 'Theft Investigation',
-    filename: 'CCTV_Camera_12_Gate_Entry.mp4',
-    document_type: 'CCTV_FOOTAGE',
-    document_category: 'INVESTIGATION',
-    mime_type: 'video/mp4',
-    file_size: 18450000,
-    sha256_hash: '4a5e12f6c981b234567890abcdef1234567890abcdef1234567890abcdef1234',
-    status: 'processing',
-    uploaded_at: '2026-09-04T08:20:00Z',
-    uploaded_by_name: 'Insp. Ramesh Sharma',
-    uploaded_by_badge: 'POL-104',
-    uploaded_by_department: 'Crime Branch Unit 1',
-    is_redacted: false,
-    extracted_text: 'VIDEO EXHIBIT: High definition perimeter camera feed. Optical motion timestamps 02:14:00 - 02:22:15 IST recorded.'
-  },
-  {
-    id: 'doc-cdr-0038',
-    case_id: 'c3',
-    case_number: 'CR-2026-0038',
-    case_title: 'Financial Investigation',
-    filename: 'Call_Detail_Records_Tower_Grid.csv',
-    document_type: 'CALL_RECORDS',
-    document_category: 'INVESTIGATION',
-    mime_type: 'text/csv',
-    file_size: 640000,
-    sha256_hash: '7c9e1234f67890abcdef1234567890abcdef1234567890abcdef1234567890ab',
-    status: 'processed',
-    uploaded_at: '2026-09-03T17:10:00Z',
-    uploaded_by_name: 'Sub-Insp. Amit Patel',
-    uploaded_by_badge: 'POL-215',
-    uploaded_by_department: 'Special Operations Group',
-    is_redacted: false,
-    extracted_text: 'CALL LOGS: 1,420 incoming and outgoing connection sessions verified with telecom service provider switch logs.'
-  },
-  {
-    id: 'doc-img-0042',
-    case_id: 'c2',
-    case_number: 'CR-2026-0042',
-    case_title: 'Cyber Fraud Case',
-    filename: 'Counterfeit_Pan_Card_Exhibit_A.jpg',
-    document_type: 'SEIZED_DOCUMENT',
-    document_category: 'JUDICIAL',
-    mime_type: 'image/jpeg',
-    file_size: 1200000,
-    sha256_hash: '9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c',
-    status: 'processed',
-    uploaded_at: '2026-09-03T16:35:00Z',
-    uploaded_by_name: 'Magistrate Court Registrar',
-    uploaded_by_badge: 'CRT-09',
-    uploaded_by_department: 'Sessions Court Registry',
-    is_redacted: false,
-    extracted_text: 'EXHIBIT PHOTO: High-resolution flatbed scan of seized forged government identity card.'
-  },
-  {
-    id: 'doc-ballistics-0027',
-    case_id: 'c5',
-    case_number: 'CR-2026-0027',
-    case_title: 'Narcotics Trade',
-    filename: 'Chemical_Composition_Analysis.pdf',
-    document_type: 'FORENSIC_REPORT',
-    document_category: 'PROSECUTION',
-    mime_type: 'application/pdf',
-    file_size: 3100000,
-    sha256_hash: '3d2c1b0a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c',
-    status: 'processed',
-    uploaded_at: '2026-08-30T14:15:00Z',
-    uploaded_by_name: 'Senior Prosecutor Rao',
-    uploaded_by_badge: 'PRS-12',
-    uploaded_by_department: 'Directorate of Prosecution',
-    is_redacted: false,
-    extracted_text: 'SPECTROMETRY RESULTS: Mass spectrometry confirmed chemical purity of contraband seized under NDPS protocol.'
-  }
-];
-
 export default function EvidenceHub({ onSelectCase }) {
   const { t } = useTranslation();
   const [documents, setDocuments] = useState([]);
@@ -198,14 +81,10 @@ export default function EvidenceHub({ onSelectCase }) {
   const loadDocuments = async () => {
     try {
       const res = await getAllDocuments();
-      if (res && res.documents && res.documents.length > 0) {
-        setDocuments(res.documents);
-      } else {
-        setDocuments(DEFAULT_FALLBACK_EVIDENCE);
-      }
+      setDocuments(res?.documents || []);
     } catch (err) {
-      console.warn("Could not load documents from API, using fallback evidence pool:", err);
-      setDocuments(DEFAULT_FALLBACK_EVIDENCE);
+      console.warn("Could not load documents from API:", err);
+      setDocuments([]);
     } finally {
       setLoading(false);
     }

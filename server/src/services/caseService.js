@@ -31,9 +31,9 @@ export async function createCase({
   const now = new Date().toISOString();
 
   const insertSql = `
-    INSERT INTO cases (id, case_number, title, description, security_level, created_by, created_at, updated_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    RETURNING id, case_number, title, description, security_level, created_by, created_at, updated_at;
+    INSERT INTO cases (id, case_number, title, description, security_level, status, created_by, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING id, case_number, title, description, security_level, status, created_by, created_at, updated_at;
   `;
 
   const res = await query(insertSql, [
@@ -42,6 +42,7 @@ export async function createCase({
     title.trim(),
     description.trim(),
     securityLevel,
+    'AWAITING_ALLOCATION',
     createdBy,
     now,
     now,
@@ -59,6 +60,7 @@ export async function createCase({
       caseNumber: newCase.case_number,
       title: newCase.title,
       securityLevel: newCase.security_level,
+      status: newCase.status,
     },
   });
 
@@ -66,7 +68,7 @@ export async function createCase({
 }
 
 /**
- * Retrieves all active investigation cases with document statistics.
+ * Retrieves all active investigation cases with document statistics and assigned personnel.
  */
 export async function listCases(user = null) {
   let sql = `
@@ -76,12 +78,30 @@ export async function listCases(user = null) {
       c.title,
       c.description,
       c.security_level,
+      c.status,
       c.created_at,
       c.updated_at,
       u.full_name as created_by_name,
       u.badge_number as created_by_badge,
       u.role as created_by_role,
-      COUNT(d.id)::int as document_count
+      COUNT(DISTINCT d.id)::int as document_count,
+      COALESCE(
+        (
+          SELECT json_agg(json_build_object(
+            'user_id', ca.user_id,
+            'assigned_role', ca.assigned_role,
+            'full_name', au.full_name,
+            'badge_number', au.badge_number,
+            'role', au.role,
+            'department', au.department,
+            'assigned_at', ca.assigned_at
+          ))
+          FROM case_assignments ca
+          JOIN users au ON ca.user_id = au.id
+          WHERE ca.case_id = c.id
+        ),
+        '[]'::json
+      ) as assignments
     FROM cases c
     LEFT JOIN users u ON c.created_by = u.id
     LEFT JOIN documents d ON c.id = d.case_id
@@ -105,7 +125,7 @@ export async function listCases(user = null) {
 }
 
 /**
- * Retrieves a single case by ID with full details.
+ * Retrieves a single case by ID with full details and assignments.
  */
 export async function getCaseById(caseId) {
   if (!caseId) {
@@ -124,12 +144,30 @@ export async function getCaseById(caseId) {
       c.title,
       c.description,
       c.security_level,
+      c.status,
       c.created_at,
       c.updated_at,
       u.full_name as created_by_name,
       u.badge_number as created_by_badge,
       u.role as created_by_role,
-      COUNT(d.id)::int as document_count
+      COUNT(DISTINCT d.id)::int as document_count,
+      COALESCE(
+        (
+          SELECT json_agg(json_build_object(
+            'user_id', ca.user_id,
+            'assigned_role', ca.assigned_role,
+            'full_name', au.full_name,
+            'badge_number', au.badge_number,
+            'role', au.role,
+            'department', au.department,
+            'assigned_at', ca.assigned_at
+          ))
+          FROM case_assignments ca
+          JOIN users au ON ca.user_id = au.id
+          WHERE ca.case_id = c.id
+        ),
+        '[]'::json
+      ) as assignments
     FROM cases c
     LEFT JOIN users u ON c.created_by = u.id
     LEFT JOIN documents d ON c.id = d.case_id
@@ -167,9 +205,102 @@ export async function updateCaseStatus(caseId, status, user, ipAddress) {
   return res.rows[0];
 }
 
+/**
+ * Assigns Judicial Officer, Public Prosecutor, and Defense Counsel to a case.
+ */
+export async function assignCaseActors({
+  caseId,
+  judgeId,
+  prosecutorId,
+  defenseId,
+  hearingDate = null,
+  notes = '',
+  allocatedBy = null,
+  ipAddress = '127.0.0.1',
+}) {
+  const caseItem = await getCaseById(caseId);
+
+  // Clear existing role assignments for this case
+  await query('DELETE FROM case_assignments WHERE case_id = $1', [caseItem.id]);
+
+  const assignmentsToInsert = [];
+  if (judgeId) {
+    assignmentsToInsert.push({ userId: judgeId, role: 'BENCH_JUDGE' });
+  }
+  if (prosecutorId) {
+    assignmentsToInsert.push({ userId: prosecutorId, role: 'PROSECUTION_COUNSEL' });
+  }
+  if (defenseId) {
+    assignmentsToInsert.push({ userId: defenseId, role: 'DEFENSE_COUNSEL' });
+  }
+
+  for (const a of assignmentsToInsert) {
+    await query(`
+      INSERT INTO case_assignments (case_id, user_id, assigned_role, assigned_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      ON CONFLICT (case_id, user_id) 
+      DO UPDATE SET assigned_role = EXCLUDED.assigned_role, assigned_at = CURRENT_TIMESTAMP
+    `, [caseItem.id, a.userId, a.role]);
+  }
+
+  // Update case status to ALLOCATED or TRIAL_SCHEDULED
+  const newStatus = hearingDate ? 'TRIAL_SCHEDULED' : 'ALLOCATED';
+  await query(
+    `UPDATE cases SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+    [newStatus, caseItem.id]
+  );
+
+  // Record Audit Event
+  await logAuditEvent({
+    userId: allocatedBy || 'usr-reg-001',
+    caseId: caseItem.id,
+    action: 'CASE_BENCH_ALLOCATED',
+    ipAddress,
+    metadata: {
+      caseNumber: caseItem.case_number,
+      judgeId,
+      prosecutorId,
+      defenseId,
+      hearingDate,
+      notes,
+      assignedCount: assignmentsToInsert.length,
+    },
+  });
+
+  return await getCaseById(caseItem.id);
+}
+
+/**
+ * Gets all assignments for a case with user details.
+ */
+export async function getCaseAssignments(caseId) {
+  const caseItem = await getCaseById(caseId);
+  const sql = `
+    SELECT 
+      ca.id,
+      ca.case_id,
+      ca.user_id,
+      ca.assigned_role,
+      ca.assigned_at,
+      u.full_name,
+      u.badge_number,
+      u.role,
+      u.department,
+      u.email
+    FROM case_assignments ca
+    JOIN users u ON ca.user_id = u.id
+    WHERE ca.case_id = $1
+    ORDER BY ca.assigned_at ASC;
+  `;
+  const res = await query(sql, [caseItem.id]);
+  return res.rows;
+}
+
 export default {
   createCase,
   listCases,
   getCaseById,
-  updateCaseStatus
+  updateCaseStatus,
+  assignCaseActors,
+  getCaseAssignments
 };

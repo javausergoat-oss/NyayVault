@@ -12,7 +12,11 @@ import {
   ChevronRight,
   Database,
   Folder,
-  MoreVertical
+  MoreVertical,
+  Scale,
+  Gavel,
+  UserCheck,
+  AlertCircle
 } from 'lucide-react';
 import { getCaseDetails, getCaseDocuments, getCaseAuditTrail, updateCaseStatus } from '../services/api';
 import DocumentUploader from './DocumentUploader';
@@ -23,6 +27,7 @@ import CaseAssistant from './CaseAssistant';
 import CaseTimeline from './CaseTimeline';
 import CaseSummary from './CaseSummary';
 import ContradictionPanel from './ContradictionPanel';
+import CaseAllocationModal from './CaseAllocationModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CaseDetailSkeleton } from './ui/Skeleton';
 
@@ -33,6 +38,7 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
   const [activeTab, setActiveTab] = useState('evidence'); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
   
   // Sub-segment states for unified hubs
   const [intelSubTab, setIntelSubTab] = useState('search'); // 'search' | 'chat' | 'contradictions'
@@ -181,28 +187,100 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
         </div>
 
         {/* Right Metadata Grid & Action Menu */}
-        <div className="flex items-center gap-6 sm:gap-10 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs font-medium text-slate-500 dark:text-slate-400">
           <div>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Case ID</span>
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{caseDetails.case_id || caseDetails.id || 'CR-2026-0001'}</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Status</span>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+              caseDetails.status === 'ALLOCATED' || caseDetails.status === 'TRIAL_SCHEDULED'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400'
+                : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400'
+            }`}>
+              {caseDetails.status || 'INVESTIGATION'}
+            </span>
           </div>
 
           <div>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Created By</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Investigator</span>
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{caseDetails.created_by_badge || 'POL-1'}</span>
           </div>
 
           <div>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Created On</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-semibold block mb-0.5">Filing Date</span>
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-              {caseDetails.created_at ? new Date(caseDetails.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '12 Aug 2025'}
+              {caseDetails.created_at ? new Date(caseDetails.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
             </span>
           </div>
+
+          {/* Allocation button for Registrar */}
+          {currentUser?.role === 'REGISTRAR' && (
+            <button
+              type="button"
+              onClick={() => setShowAllocationModal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Scale size={14} />
+              <span>{caseDetails.assignments?.length > 0 ? 'Manage Bench' : 'Allocate Bench'}</span>
+            </button>
+          )}
 
           <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800">
             <MoreVertical size={18} />
           </button>
         </div>
+      </div>
+
+      {/* Bench & Legal Counsel Strip */}
+      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs shadow-xs">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
+              <Gavel size={16} />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Presiding Magistrate</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {caseDetails.assignments?.find(a => a.assigned_role === 'BENCH_JUDGE')?.full_name || (
+                  <span className="text-amber-600 dark:text-amber-400 italic">Awaiting Registry Allocation</span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+              <ShieldCheck size={16} />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Public Prosecutor</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {caseDetails.assignments?.find(a => a.assigned_role === 'PROSECUTION_COUNSEL')?.full_name || (
+                  <span className="text-slate-400 italic">Unassigned</span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400">
+              <UserCheck size={16} />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Defense Counsel</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {caseDetails.assignments?.find(a => a.assigned_role === 'DEFENSE_COUNSEL')?.full_name || (
+                  <span className="text-slate-400 italic">Unassigned</span>
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {(!caseDetails.assignments || caseDetails.assignments.length === 0) && currentUser?.role !== 'REGISTRAR' && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">
+            <AlertCircle size={13} />
+            Case pending judicial bench allocation by Court Registry
+          </span>
+        )}
       </div>
 
 
@@ -317,6 +395,18 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* Bench Allocation Modal for Registrar */}
+      {showAllocationModal && (
+        <CaseAllocationModal
+          caseItem={caseDetails}
+          onClose={() => setShowAllocationModal(false)}
+          onSuccess={(updated) => {
+            setShowAllocationModal(false);
+            loadData();
+          }}
+        />
+      )}
     </motion.div>
   );
 }

@@ -151,3 +151,13 @@ export async function fetchDocumentBlob(documentId) {
   return { blob, objectUrl, contentType, sha256 };
 }
 
+export async function assignCase(caseId, allocationData) {
+  return fetchApi(`/cases/${caseId}/assignments`, {
+    method: 'POST',
+    body: allocationData,
+  });
+}
+
+export async function getCaseAssignments(caseId) {
+  return fetchApi(`/cases/${caseId}/assignments`);
+}

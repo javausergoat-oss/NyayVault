@@ -17,6 +17,20 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
 
+export const GLOBAL_EVIDENCE_ROLES = [
+  'REGISTRAR', 
+  'COURT_REGISTRAR', 
+  'FORENSIC_EXAMINER', 
+  'FORENSIC', 
+  'CUSTODIAN', 
+  'ADMIN'
+];
+
+export const canAccessGlobalEvidence = (role) => {
+  if (!role) return false;
+  return GLOBAL_EVIDENCE_ROLES.includes(role);
+};
+
 export default function Sidebar({ activeView, onViewChange, currentUser, mobileOpen, onCloseMobile }) {
   const { t } = useTranslation();
 
@@ -32,6 +46,14 @@ export default function Sidebar({ activeView, onViewChange, currentUser, mobileO
     { id: 'users', label: 'Users', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
+
+  // Strictly filter out global Evidence Vault for Police, Lawyers, and Judges
+  const filteredNavItems = navItems.filter(item => {
+    if (item.id === 'evidence') {
+      return canAccessGlobalEvidence(currentUser?.role);
+    }
+    return true;
+  });
 
   const handleNavClick = (id) => {
     onViewChange(id);
@@ -71,7 +93,7 @@ export default function Sidebar({ activeView, onViewChange, currentUser, mobileO
 
         {/* Navigation Items */}
         <nav className="p-3 space-y-1">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id || (item.id === 'cases' && activeView === 'case');
             return (

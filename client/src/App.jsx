@@ -15,10 +15,45 @@ import ReportsHub from './components/ReportsHub';
 import UsersDirectory from './components/UsersDirectory';
 import SettingsHub from './components/SettingsHub';
 import EvidenceHub from './components/EvidenceHub';
+import { canAccessGlobalEvidence } from './components/Sidebar';
+import { Lock, FolderKanban } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './hooks/useTranslation';
 import { NotificationProvider } from './hooks/useNotifications';
 import ErrorBoundary from './components/ui/ErrorBoundary';
+
+function EvidenceRestrictedBoundary({ onGoToCases }) {
+  return (
+    <div className="max-w-2xl mx-auto my-12 p-8 sm:p-10 bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/40 rounded-3xl shadow-xl text-center space-y-6">
+      <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-600 dark:text-amber-400 mx-auto shadow-sm">
+        <Lock size={30} className="stroke-[2.2]" />
+      </div>
+      <div className="space-y-3">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+          Judicial Evidentiary Boundary • Section 65B BSA
+        </span>
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+          Global Evidence Vault Restricted
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg mx-auto">
+          Under statutory confidentiality and court procedural justice rules, Police Investigators, Defense Counsels, Public Prosecutors, and Judicial Officers cannot access the global evidence repository across unassigned cases.
+        </p>
+        <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold">
+          You may only inspect, verify, and upload exhibits inside your officially assigned case dockets.
+        </p>
+      </div>
+      <div className="pt-2 flex justify-center">
+        <button
+          onClick={onGoToCases}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-blue-600/20 cursor-pointer"
+        >
+          <FolderKanban size={16} />
+          <span>Access My Assigned Cases</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function AppContent() {
   const [activeCaseId, setActiveCaseId] = useState(null);
@@ -206,11 +241,15 @@ function AppContent() {
           ) : activeView === 'dashboard' ? (
             <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} onViewChange={handleViewChange} />
           ) : activeView === 'evidence' ? (
-            <EvidenceHub onSelectCase={handleCaseSelect} />
+            canAccessGlobalEvidence(currentUser?.role) ? (
+              <EvidenceHub onSelectCase={handleCaseSelect} />
+            ) : (
+              <EvidenceRestrictedBoundary onGoToCases={() => handleViewChange('cases')} />
+            )
           ) : activeView === 'search' ? (
             <SmartSearch onOpenCase={handleCaseSelect} />
           ) : activeView === 'cases' ? (
-            <CaseList onCaseSelect={handleCaseSelect} />
+            <CaseList onCaseSelect={handleCaseSelect} currentUser={currentUser} />
           ) : activeView === 'radar' ? (
             <CrossCaseRadar onOpenCase={handleCaseSelect} />
           ) : activeView === 'timeline' ? (

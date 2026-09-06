@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(64) PRIMARY KEY,
     badge_number VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL DEFAULT '$2b$10$PHXbeifecX92LfHvGsYBPuPZd9KK64fPqWqQ0E1hGVLObljQMx2cW',
+    password_hash VARCHAR(255) NOT NULL DEFAULT '$2b$10$f8VERr328ja8qQly0fuVsuLeCCToaD8.V6wBIhx.QLkfQGWgg.jES',
     email VARCHAR(255),
     full_name VARCHAR(120) NOT NULL,
     role VARCHAR(50) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '$2b$10$PHXbeifecX92LfHvGsYBPuPZd9KK64fPqWqQ0E1hGVLObljQMx2cW';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255) NOT NULL DEFAULT '$2b$10$f8VERr328ja8qQly0fuVsuLeCCToaD8.V6wBIhx.QLkfQGWgg.jES';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
 
 -- 2. Cases Table
@@ -145,20 +145,3 @@ VALUES
     ('usr-1787866796708', 'REG-1', 'Registrar Amit Kumar', 'REGISTRAR', 'Faridabad Court Registry')
 ON CONFLICT (id) DO NOTHING;
 
--- Seed Sample Active Investigation Cases
-INSERT INTO cases (id, case_number, title, description, security_level, created_by, status)
-VALUES 
-    ('case-c001', 'FIR-2026-DL-0042', 'Faridabad-Court-1-Mr Sharma vs State', 'Cyber extortion and illegal data tampering investigation across financial channels.', 'TOP_SECRET', 'usr-pol-042', 'INVESTIGATION'),
-    ('case-c002', 'FIR-2026-MH-1189', 'Faridabad-Court-2-Cargo Inspection', 'Interception of suspicious cargo documents and customs clearance falsification.', 'RESTRICTED', 'usr-pol-042', 'INVESTIGATION'),
-    ('case-c003', 'FIR-2026-KA-0502', 'Faridabad-Court-3-Registry Forgery', 'Alleged forged registry deeds and contested property deeds presented in civil trial.', 'CONFIDENTIAL', 'usr-for-108', 'INVESTIGATION'),
-    ('case-56fd49f6', 'CASE-1', 'STATE VS HARDIK', 'State vs Hardik cyber extortion & illegal tampering case.', 'RESTRICTED', 'usr-pol-001', 'INVESTIGATION')
-ON CONFLICT (id) DO NOTHING;
-
--- Seed Case Assignments for STATE VS HARDIK
-INSERT INTO case_assignments (case_id, user_id, assigned_role)
-VALUES 
-    ('case-56fd49f6', 'usr-jud-001', 'PRESIDING_JUDGE'),
-    ('case-56fd49f6', 'usr-1787866191848', 'DEFENSE_COUNSEL'),
-    ('case-56fd49f6', 'usr-1787866298750', 'PROSECUTOR'),
-    ('case-56fd49f6', 'usr-1787866796708', 'COURT_REGISTRAR')
-ON CONFLICT (case_id, user_id) DO NOTHING;
