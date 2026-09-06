@@ -108,6 +108,15 @@ export async function listCases(user = null) {
  * Retrieves a single case by ID with full details.
  */
 export async function getCaseById(caseId) {
+  if (!caseId) {
+    const error = new Error('Case ID is required');
+    error.statusCode = 400;
+    throw error;
+  }
+  const idStr = String(caseId).trim();
+  const normalizedHyphen = idStr.replace(/_/g, '-');
+  const normalizedUnderscore = idStr.replace(/-/g, '_');
+
   const sql = `
     SELECT 
       c.id,
@@ -124,11 +133,11 @@ export async function getCaseById(caseId) {
     FROM cases c
     LEFT JOIN users u ON c.created_by = u.id
     LEFT JOIN documents d ON c.id = d.case_id
-    WHERE c.id = $1
+    WHERE c.id = $1 OR c.id = $2 OR c.id = $3 OR LOWER(c.case_number) = LOWER($1)
     GROUP BY c.id, u.id;
   `;
 
-  const res = await query(sql, [caseId]);
+  const res = await query(sql, [idStr, normalizedHyphen, normalizedUnderscore]);
   if (res.rows.length === 0) {
     const error = new Error(`Case not found with ID: ${caseId}`);
     error.statusCode = 404;
@@ -138,8 +147,9 @@ export async function getCaseById(caseId) {
 }
 
 export async function updateCaseStatus(caseId, status, user, ipAddress) {
+  const caseItem = await getCaseById(caseId);
   const sql = `UPDATE cases SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`;
-  const res = await query(sql, [status, caseId]);
+  const res = await query(sql, [status, caseItem.id]);
   
   if (res.rows.length === 0) {
     throw new Error('Case not found');
@@ -147,8 +157,8 @@ export async function updateCaseStatus(caseId, status, user, ipAddress) {
 
   // Log the status change
   await logAuditEvent({
-    userId: user.id,
-    caseId: caseId,
+    userId: user?.id,
+    caseId: caseItem.id,
     action: 'CASE_STATUS_UPDATED',
     ipAddress,
     metadata: { new_status: status }

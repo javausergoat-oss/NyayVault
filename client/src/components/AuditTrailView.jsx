@@ -87,7 +87,7 @@ export default function AuditTrailView({ logs, caseNumber = 'UNKNOWN-CASE' }) {
         </div>
         <button 
           onClick={generatePDF}
-          className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
+          className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
         >
           <Download size={14} /> Export Audit PDF
         </button>

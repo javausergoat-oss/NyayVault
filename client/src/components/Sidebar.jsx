@@ -11,10 +11,15 @@ import {
   Users, 
   Settings, 
   Landmark,
-  Fingerprint
+  Scale,
+  X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from '../hooks/useTranslation';
 
-export default function Sidebar({ activeView, onViewChange, currentUser }) {
+export default function Sidebar({ activeView, onViewChange, currentUser, mobileOpen, onCloseMobile }) {
+  const { t } = useTranslation();
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'cases', label: 'Cases', icon: FolderKanban },
@@ -28,22 +33,40 @@ export default function Sidebar({ activeView, onViewChange, currentUser }) {
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  return (
-    <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0 select-none z-30 transition-colors">
+  const handleNavClick = (id) => {
+    onViewChange(id);
+    if (onCloseMobile) {
+      onCloseMobile();
+    }
+  };
+
+  const SidebarContent = ({ isMobile = false }) => (
+    <div className="flex flex-col justify-between h-full w-full">
       {/* Top Brand / Logo */}
       <div>
-        <div className="p-5 pb-4 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800/80">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 shadow-xs">
-            <Fingerprint size={22} className="stroke-[2.2]" />
+        <div className="p-5 pb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#0e1d3e] text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-950/20">
+              <Scale size={20} className="stroke-[1.9]" />
+            </div>
+            <div>
+              <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+                Nyay<span className="text-blue-600">Vault</span>
+              </h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                {t('Secure Evidence Portal')}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xs font-black tracking-wider text-slate-900 dark:text-white uppercase leading-tight">
-              Digital Evidence Vault
-            </h1>
-            <p className="text-[10px] text-slate-400 font-medium tracking-tight mt-0.5">
-              Secure. Traceable. Trusted.
-            </p>
-          </div>
+          {isMobile && (
+            <button 
+              onClick={onCloseMobile}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Close navigation"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         {/* Navigation Items */}
@@ -55,20 +78,21 @@ export default function Sidebar({ activeView, onViewChange, currentUser }) {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => onViewChange(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                onClick={() => handleNavClick(item.id)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 shadow-2xs font-bold border border-emerald-100 dark:border-emerald-900/40'
+                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 shadow-2xs font-bold border border-blue-100 dark:border-blue-900/40'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
-                <Icon size={17} className={isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'} />
-                <span>{item.label}</span>
+                <Icon size={17} className={isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'} />
+                <span>{t(item.label)}</span>
               </button>
             );
           })}
         </nav>
       </div>
+
 
       {/* Bottom Legal Watermark */}
       <div className="p-5 border-t border-slate-100 dark:border-slate-800/80 flex flex-col items-center text-center">
@@ -76,10 +100,46 @@ export default function Sidebar({ activeView, onViewChange, currentUser }) {
           <Landmark size={20} className="stroke-[1.6]" />
         </div>
         <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 leading-tight">
-          Towards Data-Driven Justice
+          {t('Towards Data-Driven Justice')}
         </p>
         <span className="text-[9px] text-slate-400 font-mono mt-0.5">SIH-26190 GovTech</span>
       </div>
-    </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Persistent Sidebar (>= lg) */}
+      <aside className="hidden lg:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col justify-between shrink-0 h-screen sticky top-0 select-none z-30 transition-colors">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile Drawer Overlay (< lg) */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden flex">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onCloseMobile}
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
+
+            {/* Slide-out Drawer Panel */}
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 260 }}
+              className="relative w-72 max-w-[85vw] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-full z-10 shadow-2xl flex flex-col overflow-y-auto"
+            >
+              <SidebarContent isMobile={true} />
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

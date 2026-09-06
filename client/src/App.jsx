@@ -14,12 +14,16 @@ import AuditTrailHub from './components/AuditTrailHub';
 import ReportsHub from './components/ReportsHub';
 import UsersDirectory from './components/UsersDirectory';
 import SettingsHub from './components/SettingsHub';
+import EvidenceHub from './components/EvidenceHub';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './hooks/useTranslation';
+import { NotificationProvider } from './hooks/useNotifications';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 function AppContent() {
   const [activeCaseId, setActiveCaseId] = useState(null);
   const [activeView, setActiveView] = useState('dashboard'); // 'dashboard', 'cases' or 'radar'
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -161,28 +165,31 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-white flex transition-colors duration-300 font-sans selection:bg-emerald-600 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafd] dark:bg-slate-950 text-slate-800 dark:text-white flex transition-colors duration-300 font-sans selection:bg-blue-600 selection:text-white relative overflow-x-hidden">
+      {/* Soft abstract ambient curves matching Login screen */}
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-100/50 via-indigo-50/30 to-transparent dark:from-blue-950/20 dark:via-transparent rounded-full blur-3xl pointer-events-none -mr-40 -mt-40 z-0" />
+      <div className="fixed bottom-0 left-64 w-[500px] h-[500px] bg-gradient-to-tr from-blue-100/60 via-sky-50/30 to-transparent dark:from-blue-950/20 dark:via-transparent rounded-full blur-3xl pointer-events-none -ml-20 -mb-40 z-0" />
+
       {/* Sidebar Navigation matching user mockup */}
       <Sidebar 
         activeView={activeCaseId ? 'cases' : activeView} 
-        onViewChange={(view) => {
-          if (view === 'evidence') {
-            handleViewChange('cases');
-          } else {
-            handleViewChange(view);
-          }
-        }} 
+        onViewChange={handleViewChange} 
         currentUser={currentUser} 
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
       />
 
       {/* Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         <TopHeader 
           currentUser={currentUser} 
           theme={theme} 
           toggleTheme={toggleTheme} 
           onLogout={handleLogout} 
           onSearchClick={() => handleViewChange('search')}
+          onToggleMobileNav={() => setMobileNavOpen(prev => !prev)}
+          onSelectCase={handleCaseSelect}
+          onViewChange={handleViewChange}
         />
 
         <main className="flex-1 p-5 sm:p-7 lg:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
@@ -198,10 +205,14 @@ function AppContent() {
             />
           ) : activeView === 'dashboard' ? (
             <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} onViewChange={handleViewChange} />
+          ) : activeView === 'evidence' ? (
+            <EvidenceHub onSelectCase={handleCaseSelect} />
           ) : activeView === 'search' ? (
             <SmartSearch onOpenCase={handleCaseSelect} />
+          ) : activeView === 'cases' ? (
+            <CaseList onCaseSelect={handleCaseSelect} />
           ) : activeView === 'radar' ? (
-            <CrossCaseRadar />
+            <CrossCaseRadar onOpenCase={handleCaseSelect} />
           ) : activeView === 'timeline' ? (
             <MasterTimelineHub onCaseSelect={handleCaseSelect} />
           ) : activeView === 'audit' ? (
@@ -213,7 +224,7 @@ function AppContent() {
           ) : activeView === 'settings' ? (
             <SettingsHub currentUser={currentUser} theme={theme} toggleTheme={toggleTheme} />
           ) : (
-            <CaseList onCaseSelect={handleCaseSelect} currentUser={currentUser} />
+            <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} onViewChange={handleViewChange} />
           )}
         </main>
       </div>
@@ -224,8 +235,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <AppContent />
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <NotificationProvider>
+          <AppContent />
+        </NotificationProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Download, 
   ShieldCheck, 
@@ -24,12 +24,14 @@ import {
   AlertCircle,
   FileCode,
   FileSpreadsheet,
-  FileCheck
+  FileCheck,
+  Columns
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { verifyDocument, getDownloadUrl } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import RedactionModal from './RedactionModal';
+import DocumentPreviewer from './DocumentPreviewer';
 
 const FOLDER_CONFIG = {
   INVESTIGATION: { 
@@ -78,8 +80,22 @@ export default function DocumentTable({ documents = [], onRefresh }) {
   const [copiedHash, setCopiedHash] = useState(null);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [viewerTab, setViewerTab] = useState('transcript'); // 'transcript', 'entities', 'metadata'
+  const [inspectorMode, setInspectorMode] = useState('split'); // 'split', 'preview', 'transcript'
   const [loadingDoc, setLoadingDoc] = useState(null);
   const [redactingDoc, setRedactingDoc] = useState(null);
+
+  // Close modal on Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setSelectedDoc(null);
+      }
+    };
+    if (selectedDoc) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [selectedDoc]);
 
   const [expandedFolders, setExpandedFolders] = useState({
     INVESTIGATION: true, 
@@ -361,7 +377,11 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                           const isCopied = copiedHash === doc.sha256_hash;
                           
                           return (
-                            <tr key={doc.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group">
+                            <tr 
+                              key={doc.id} 
+                              onClick={() => openDocumentViewer(doc)}
+                              className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer"
+                            >
                               {/* Document Name & Officer metadata */}
                               <td className="py-4 px-5">
                                 <div className="flex items-start gap-3">
@@ -420,7 +440,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                                       {doc.sha256_hash}
                                     </span>
                                     <button 
-                                      onClick={() => handleCopy(doc.sha256_hash)} 
+                                      onClick={(e) => { e.stopPropagation(); handleCopy(doc.sha256_hash); }} 
                                       className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-0.5" 
                                       title="Copy full SHA-256 hash"
                                     >
@@ -439,7 +459,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                                     </span>
                                   ) : (
                                     <button 
-                                      onClick={() => handleVerify(doc.id)}
+                                      onClick={(e) => { e.stopPropagation(); handleVerify(doc.id); }}
                                       disabled={isVerifying}
                                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors w-max disabled:opacity-50"
                                     >
@@ -453,7 +473,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                               {/* Action Buttons */}
                               <td className="py-4 px-5 text-right space-x-1.5 whitespace-nowrap">
                                 <button 
-                                  onClick={() => handleGenerateBSA(doc)}
+                                  onClick={(e) => { e.stopPropagation(); handleGenerateBSA(doc); }}
                                   title="Download BSA 2023 Sec 63 admissibility certificate"
                                   className="px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors inline-flex items-center gap-1 shadow-xs"
                                 >
@@ -462,7 +482,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                                 </button>
                                 
                                 <button 
-                                  onClick={() => openDocumentViewer(doc)}
+                                  onClick={(e) => { e.stopPropagation(); openDocumentViewer(doc); }}
                                   disabled={loadingDoc === doc.id}
                                   className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white transition-all inline-flex items-center gap-1 shadow-xs disabled:opacity-50 cursor-pointer"
                                 >
@@ -476,7 +496,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
 
                                 {!doc.is_redacted && (
                                   <button 
-                                    onClick={() => setRedactingDoc(doc)}
+                                    onClick={(e) => { e.stopPropagation(); setRedactingDoc(doc); }}
                                     title="Redact sensitive PII"
                                     className="px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors inline-flex items-center gap-1 shadow-xs"
                                   >
@@ -535,6 +555,46 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* View Mode Segmented Controls */}
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs mr-1">
+                    <button
+                      onClick={() => setInspectorMode('split')}
+                      className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                        inspectorMode === 'split'
+                          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                      title="View Original Exhibit and OCR/Intel side by side"
+                    >
+                      <Columns size={13} />
+                      <span className="hidden md:inline">Split View</span>
+                    </button>
+                    <button
+                      onClick={() => setInspectorMode('preview')}
+                      className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                        inspectorMode === 'preview'
+                          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                      title="Full-width Original Exhibit Preview"
+                    >
+                      <Eye size={13} />
+                      <span className="hidden md:inline">Exhibit Preview</span>
+                    </button>
+                    <button
+                      onClick={() => setInspectorMode('transcript')}
+                      className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                        inspectorMode === 'transcript'
+                          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                      }`}
+                      title="Full-width OCR Transcript & Forensic Entities"
+                    >
+                      <FileCode size={13} />
+                      <span className="hidden md:inline">OCR & Intel</span>
+                    </button>
+                  </div>
+
                   <button 
                     onClick={() => handleGenerateBSA(selectedDoc)}
                     className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -545,127 +605,293 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                   <button 
                     onClick={() => setSelectedDoc(null)} 
                     className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-500 dark:text-slate-400"
+                    title="Close Inspector (Esc)"
                   >
                     <X size={20} />
                   </button>
                 </div>
               </div>
               
-              {/* Modal Body: Split Screen Inspector */}
-              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-                {/* Left Side: Document Transcript Viewer (Span 7) */}
-                <div className="lg:col-span-7 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full bg-slate-50/50 dark:bg-slate-950">
-                  <div className="flex items-center justify-between px-5 py-2.5 bg-slate-100/70 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 font-medium">
-                    <span className="flex items-center gap-1.5">
-                      <FileCode size={14} className="text-blue-500" />
-                      OCR Digital Transcript
-                    </span>
-                    <button 
-                      onClick={() => handleCopy(selectedDoc.extracted_text || '')}
-                      className="hover:text-blue-600 transition-colors flex items-center gap-1"
-                    >
-                      <Copy size={12} />
-                      <span>Copy Text</span>
-                    </button>
+              {/* Modal Body: Multi-Mode Evidence Inspector */}
+              <div className="flex-1 overflow-hidden h-full flex flex-col">
+                {/* Mode 1: Exhibit Preview Only (Full Width) */}
+                {inspectorMode === 'preview' && (
+                  <div className="flex-1 overflow-hidden h-full">
+                    <DocumentPreviewer 
+                      documentId={selectedDoc.id} 
+                      filename={selectedDoc.filename} 
+                      documentType={selectedDoc.document_type} 
+                    />
                   </div>
+                )}
 
-                  <div className="flex-1 overflow-y-auto p-6">
-                    {selectedDoc.extracted_text ? (
-                      <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-                        <div className="text-center pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
-                          <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
-                            Official Digital Evidence Transcript
-                          </span>
-                          <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                            {selectedDoc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ')}
-                          </h3>
+                {/* Mode 2: Split View (Exhibit on Left, OCR & Entities on Right) */}
+                {inspectorMode === 'split' && (
+                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-full">
+                    {/* Left 6 Cols: Exhibit Media Preview */}
+                    <div className="lg:col-span-6 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-hidden">
+                      <DocumentPreviewer 
+                        documentId={selectedDoc.id} 
+                        filename={selectedDoc.filename} 
+                        documentType={selectedDoc.document_type} 
+                      />
+                    </div>
+
+                    {/* Right 6 Cols: OCR Transcript & Forensic Entities */}
+                    <div className="lg:col-span-6 flex flex-col h-full overflow-y-auto bg-white dark:bg-slate-900">
+                      <div className="flex items-center justify-between px-5 py-2.5 bg-slate-100/70 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setViewerTab('transcript')}
+                            className={`px-3 py-1 rounded-lg transition-colors ${
+                              viewerTab === 'transcript'
+                                ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
+                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            OCR Transcript
+                          </button>
+                          <button
+                            onClick={() => setViewerTab('entities')}
+                            className={`px-3 py-1 rounded-lg transition-colors ${
+                              viewerTab === 'entities'
+                                ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
+                                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            Forensic Intelligence
+                          </button>
                         </div>
+                        {viewerTab === 'transcript' && (
+                          <button 
+                            onClick={() => handleCopy(selectedDoc.extracted_text || '')}
+                            className="hover:text-blue-600 transition-colors flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs"
+                          >
+                            <Copy size={12} />
+                            <span>Copy Text</span>
+                          </button>
+                        )}
+                      </div>
 
-                        <div className="font-mono text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
-                          {selectedDoc.extracted_text}
-                        </div>
+                      <div className="flex-1 p-6 overflow-y-auto space-y-6">
+                        {viewerTab === 'transcript' ? (
+                          selectedDoc.extracted_text ? (
+                            <div className="max-w-xl mx-auto bg-slate-50/50 dark:bg-slate-950/50 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                              <div className="text-center pb-3 mb-3 border-b border-slate-200 dark:border-slate-800">
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-0.5">
+                                  Official Digital Evidence Transcript
+                                </span>
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                                  {selectedDoc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ')}
+                                </h4>
+                              </div>
 
-                        <div className="mt-8 pt-3 border-t border-dashed border-slate-200 dark:border-slate-700 text-center text-[10px] text-slate-400 uppercase tracking-wider">
-                          Cryptographically Indexed • NyayVault SIH 26190
+                              <div className="font-mono text-xs leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
+                                {selectedDoc.extracted_text}
+                              </div>
+
+                              <div className="mt-6 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800 text-center text-[10px] text-slate-400 uppercase tracking-wider">
+                                Cryptographically Indexed • NyayVault SIH 26190
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
+                              <FileText size={42} className="mb-3 opacity-30 text-blue-500" />
+                              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No Raw Text Extracted</p>
+                              <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                                Binary payload is pending OCR processing or contains non-textual evidence.
+                              </p>
+                            </div>
+                          )
+                        ) : (
+                          <div className="space-y-6">
+                            {/* AI Classification */}
+                            <div>
+                              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <Sparkles size={13} className="text-blue-600" />
+                                AI Forensic Classification
+                              </h3>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">Document Class</span>
+                                  <div className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-0.5 truncate">
+                                    {selectedDoc.document_type || 'Unknown'}
+                                  </div>
+                                </div>
+                                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">Model Confidence</span>
+                                  <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                    {((selectedDoc.classification_confidence || 0.94) * 100).toFixed(1)}%
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Named Entities */}
+                            <div>
+                              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <FileCheck size={13} className="text-blue-600" />
+                                Extracted Named Entities
+                              </h3>
+                              {selectedDoc.metadata && Object.keys(selectedDoc.metadata).length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  {Object.entries(selectedDoc.metadata).map(([k, v]) => (
+                                    <div key={k} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
+                                        {k.replace(/_/g, ' ')}
+                                      </span>
+                                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 block break-words">
+                                        {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-400 italic">
+                                  No custom metadata entities mapped yet.
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Chain of Custody Stamp */}
+                            <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/50 space-y-2">
+                              <div className="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300">
+                                <CheckCircle2 size={15} className="text-blue-600" />
+                                <span>Tamper-Proof Ingestion Stamp</span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-mono">
+                                Timestamp: {new Date(selectedDoc.uploaded_at).toISOString()}
+                              </p>
+                              <p className="text-[10px] text-slate-500 font-mono break-all">
+                                SHA-256: {selectedDoc.sha256_hash}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mode 3: Transcript & Intelligence Only (Full Width) */}
+                {inspectorMode === 'transcript' && (
+                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-full">
+                    {/* Left Side: Document Transcript Viewer (Span 7) */}
+                    <div className="lg:col-span-7 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 flex flex-col h-full bg-slate-50/50 dark:bg-slate-950">
+                      <div className="flex items-center justify-between px-5 py-2.5 bg-slate-100/70 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                        <span className="flex items-center gap-1.5">
+                          <FileCode size={14} className="text-blue-500" />
+                          OCR Digital Transcript
+                        </span>
+                        <button 
+                          onClick={() => handleCopy(selectedDoc.extracted_text || '')}
+                          className="hover:text-blue-600 transition-colors flex items-center gap-1"
+                        >
+                          <Copy size={12} />
+                          <span>Copy Text</span>
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto p-6">
+                        {selectedDoc.extracted_text ? (
+                          <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                            <div className="text-center pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+                              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block mb-1">
+                                Official Digital Evidence Transcript
+                              </span>
+                              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                                {selectedDoc.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ')}
+                              </h3>
+                            </div>
+
+                            <div className="font-mono text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
+                              {selectedDoc.extracted_text}
+                            </div>
+
+                            <div className="mt-8 pt-3 border-t border-dashed border-slate-200 dark:border-slate-700 text-center text-[10px] text-slate-400 uppercase tracking-wider">
+                              Cryptographically Indexed • NyayVault SIH 26190
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
+                            <FileText size={42} className="mb-3 opacity-30 text-blue-500" />
+                            <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No Raw Text Extracted</p>
+                            <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                              This binary evidence payload may be an audio/video recording or awaiting deep OCR queue.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Side: AI Intelligence & Forensic Metadata (Span 5) */}
+                    <div className="lg:col-span-5 p-6 overflow-y-auto flex flex-col h-full bg-white dark:bg-slate-900 space-y-6">
+                      {/* AI Classification Card */}
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                          <Sparkles size={13} className="text-blue-600" />
+                          AI Forensic Classification
+                        </h3>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Document Class</span>
+                            <div className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-0.5 truncate">
+                              {selectedDoc.document_type || 'Unknown'}
+                            </div>
+                          </div>
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Model Confidence</span>
+                            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              {((selectedDoc.classification_confidence || 0.94) * 100).toFixed(1)}%
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center">
-                        <FileText size={42} className="mb-3 opacity-30 text-blue-500" />
-                        <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No Raw Text Extracted</p>
-                        <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                          This binary evidence payload may be an audio/video recording or awaiting deep OCR queue.
+
+                      {/* Structured Forensic Entities */}
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                          <FileCheck size={13} className="text-blue-600" />
+                          Extracted Named Entities
+                        </h3>
+                        {selectedDoc.metadata && Object.keys(selectedDoc.metadata).length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {Object.entries(selectedDoc.metadata).map(([k, v]) => (
+                              <div key={k} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
+                                  {k.replace(/_/g, ' ')}
+                                </span>
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 block break-words">
+                                  {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-400 italic">
+                            No custom metadata entities mapped yet.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Chain of Custody Stamp */}
+                      <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/50 space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300">
+                          <CheckCircle2 size={15} className="text-blue-600" />
+                          <span>Tamper-Proof Ingestion Stamp</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-mono">
+                          Timestamp: {new Date(selectedDoc.uploaded_at).toISOString()}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-mono break-all">
+                          SHA-256: {selectedDoc.sha256_hash}
                         </p>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right Side: AI Intelligence & Forensic Metadata (Span 5) */}
-                <div className="lg:col-span-5 p-6 overflow-y-auto flex flex-col h-full bg-white dark:bg-slate-900 space-y-6">
-                  {/* AI Classification Card */}
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      <Sparkles size={13} className="text-blue-600" />
-                      AI Forensic Classification
-                    </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Document Class</span>
-                        <div className="text-sm font-bold text-blue-600 dark:text-blue-400 mt-0.5 truncate">
-                          {selectedDoc.document_type || 'Unknown'}
-                        </div>
-                      </div>
-                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Model Confidence</span>
-                        <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          {((selectedDoc.classification_confidence || 0.94) * 100).toFixed(1)}%
-                        </div>
-                      </div>
                     </div>
                   </div>
-
-                  {/* Structured Forensic Entities */}
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      <FileCheck size={13} className="text-blue-600" />
-                      Extracted Named Entities
-                    </h3>
-                    {selectedDoc.metadata && Object.keys(selectedDoc.metadata).length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        {Object.entries(selectedDoc.metadata).map(([k, v]) => (
-                          <div key={k} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/80 dark:border-slate-700">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
-                              {k.replace(/_/g, ' ')}
-                            </span>
-                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5 block break-words">
-                              {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-400 italic">
-                        No custom metadata entities mapped yet.
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Chain of Custody Stamp */}
-                  <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-800/50 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300">
-                      <CheckCircle2 size={15} className="text-blue-600" />
-                      <span>Tamper-Proof Ingestion Stamp</span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-mono">
-                      Timestamp: {new Date(selectedDoc.uploaded_at).toISOString()}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-mono break-all">
-                      SHA-256: {selectedDoc.sha256_hash}
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
+
             </motion.div>
           </motion.div>
         )}

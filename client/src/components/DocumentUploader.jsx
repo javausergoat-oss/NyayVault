@@ -58,7 +58,7 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
           <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Secure Batch Evidence Upload</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Upload digital evidence files for cryptographic hashing and classification.</p>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#edf7f2] dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/30 text-[#1b4d3e] dark:text-emerald-400 text-xs font-bold">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold">
           <ShieldCheck size={15} /> SHA-256 Active
         </div>
       </div>
@@ -71,20 +71,20 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
           onDrop={handleDrop}
           className={`border-2 border-dashed rounded-xl p-8 transition-all flex flex-col md:flex-row items-center justify-between gap-6 cursor-pointer ${
             dragActive 
-              ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' 
-              : 'border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
+              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20' 
+              : 'border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
           }`}
           onClick={() => document.getElementById('file-upload').click()}
         >
           <div className="flex-1 flex flex-col items-center text-center">
-            <div className="w-14 h-14 rounded-full bg-[#edf7f2] dark:bg-emerald-950/60 text-[#1b4d3e] dark:text-emerald-400 flex items-center justify-center mb-3">
+            <div className="w-14 h-14 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
               <UploadCloud size={28} />
             </div>
             <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-0.5">
               Drag & drop multiple files here
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              or click to <span className="text-[#1b4d3e] dark:text-emerald-400 font-semibold underline">browse</span> files
+              or click to <span className="text-blue-600 dark:text-blue-400 font-semibold underline">browse</span> files
             </p>
             <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-4">
               Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, MP4, MOV, WAV, CSV <span className="mx-1">|</span> Max file size: 2 GB (per file)
@@ -93,7 +93,7 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
 
           <button 
             type="button"
-            className="px-5 py-2.5 rounded-xl bg-[#1b4d3e] hover:bg-[#143c30] text-white text-xs font-bold flex items-center gap-2 shadow-xs transition-colors shrink-0"
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all shrink-0 cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
               document.getElementById('file-upload').click();
@@ -167,7 +167,7 @@ export default function DocumentUploader({ caseId, onUploadComplete }) {
                   Cancel
                 </button>
                 <button 
-                  className="px-4 py-1.5 rounded-lg bg-[#1b4d3e] hover:bg-[#143c30] text-white font-bold disabled:opacity-50"
+                  className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer"
                   onClick={handleUpload}
                   disabled={uploading}
                 >

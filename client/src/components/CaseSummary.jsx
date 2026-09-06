@@ -78,14 +78,14 @@ export default function CaseSummary({ caseId, caseDetails }) {
           {!summary && !loading && (
             <button
               onClick={handleGenerate}
-              className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap shadow-md shadow-blue-600/20 transition-all cursor-pointer"
             >
               <FileBarChart size={16} /> Synthesize Brief
             </button>
           )}
 
           {loading && (
-            <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
+            <div className="flex items-center gap-2 text-blue-600 text-xs font-bold">
               <Loader2 size={16} className="animate-spin" />
               <span>Analyzing evidence vault & synthesizing brief...</span>
             </div>
@@ -108,11 +108,11 @@ export default function CaseSummary({ caseId, caseDetails }) {
         >
           <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
             <h4 className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-2">
-              <FileBarChart size={16} className="text-emerald-600" /> Synthesized Case Summary
+              <FileBarChart size={16} className="text-blue-600" /> Synthesized Case Summary
             </h4>
             <button
               onClick={handleDownloadPDF}
-              className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
             >
               <Download size={14} /> Export Brief PDF
             </button>

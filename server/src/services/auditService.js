@@ -64,6 +64,11 @@ export async function logAuditEvent({
  * @returns {Promise<Array>}
  */
 export async function getCaseAuditLogs(caseId) {
+  if (!caseId) return [];
+  const idStr = String(caseId).trim();
+  const normalizedHyphen = idStr.replace(/_/g, '-');
+  const normalizedUnderscore = idStr.replace(/-/g, '_');
+
   const sql = `
     SELECT 
       a.id,
@@ -82,11 +87,11 @@ export async function getCaseAuditLogs(caseId) {
     FROM audit_logs a
     LEFT JOIN users u ON a.user_id = u.id
     LEFT JOIN documents d ON a.document_id = d.id
-    WHERE a.case_id = $1
+    WHERE a.case_id = $1 OR a.case_id = $2 OR a.case_id = $3
     ORDER BY a.timestamp DESC;
   `;
 
-  const res = await query(sql, [caseId]);
+  const res = await query(sql, [idStr, normalizedHyphen, normalizedUnderscore]);
   return res.rows;
 }
 

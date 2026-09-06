@@ -3,13 +3,31 @@ import {
   getDocumentById,
   verifyDocumentIntegrity,
   downloadDocument,
-  applyRedactionsToDocument
+  applyRedactionsToDocument,
+  listAllDocuments
 } from '../services/documentService.js';
 import { getDocumentAuditLogs } from '../services/auditService.js';
 import { suggestRedactions } from '../services/aiService.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
+
+/**
+ * GET /api/documents
+ * Returns all evidence documents across cases.
+ */
+router.get('/', async (req, res, next) => {
+  try {
+    const documents = await listAllDocuments(req.user);
+    res.json({
+      success: true,
+      count: documents.length,
+      documents,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * GET /api/documents/:documentId

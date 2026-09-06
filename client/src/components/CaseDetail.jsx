@@ -24,18 +24,23 @@ import CaseTimeline from './CaseTimeline';
 import CaseSummary from './CaseSummary';
 import ContradictionPanel from './ContradictionPanel';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CaseDetailSkeleton } from './ui/Skeleton';
 
 export default function CaseDetail({ caseId, onBack, currentUser }) {
   const [caseDetails, setCaseDetails] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('evidence'); 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // Sub-segment states for unified hubs
   const [intelSubTab, setIntelSubTab] = useState('search'); // 'search' | 'chat' | 'contradictions'
   const [timelineSubTab, setTimelineSubTab] = useState('timeline'); // 'timeline' | 'audit'
 
   const loadData = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const [caseRes, docsRes, auditRes] = await Promise.all([
         getCaseDetails(caseId),
@@ -47,6 +52,9 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
       setAuditLogs(auditRes.auditLogs || []);
     } catch (err) {
       console.error('Failed to load case data:', err);
+      setError(err.message || 'Unable to retrieve case file.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,11 +88,42 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
     loadData();
   }, [caseId]);
 
-  if (!caseDetails) return (
-    <div className="flex justify-center p-20">
-      <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
-    </div>
-  );
+  if (loading && !caseDetails) return <CaseDetailSkeleton />;
+
+  if (error && !caseDetails) {
+    return (
+      <div className="max-w-3xl mx-auto my-12 p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm text-center space-y-6">
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400 mx-auto">
+          <AlertTriangle size={32} />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Case File Not Found
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            The requested case identifier <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-700 dark:text-slate-300">{caseId}</code> could not be located. It may have been archived, moved, or access may be restricted.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm transition-colors shadow-sm cursor-pointer"
+          >
+            <ArrowLeft size={16} />
+            <span>Return to Cases</span>
+          </button>
+          <button
+            onClick={loadData}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
+          >
+            <span>Try Again</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!caseDetails) return <CaseDetailSkeleton />;
 
   const mainTabs = [
     { id: 'evidence', label: 'Evidence Vault', icon: FileText },
@@ -122,7 +161,7 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
             <ArrowLeft size={18} />
           </button>
 
-          <div className="w-12 h-12 rounded-xl bg-[#edf7f2] dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center text-[#1b4d3e] dark:text-emerald-400 shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-[#0e1d3e] text-white flex items-center justify-center shadow-sm shrink-0">
             <Folder size={24} />
           </div>
 
@@ -178,11 +217,11 @@ export default function CaseDetail({ caseId, onBack, currentUser }) {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-3 py-3 border-b-2 text-xs font-bold transition-all whitespace-nowrap ${
                 isActive
-                  ? 'border-[#1b4d3e] text-[#1b4d3e] dark:border-emerald-400 dark:text-emerald-300'
+                  ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-300'
                   : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
-              <TabIcon size={16} className={isActive ? 'text-[#1b4d3e] dark:text-emerald-400' : 'text-slate-400'} />
+              <TabIcon size={16} className={isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'} />
               <span>{tab.label}</span>
             </button>
           );

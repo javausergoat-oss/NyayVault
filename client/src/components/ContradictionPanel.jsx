@@ -37,7 +37,7 @@ export default function ContradictionPanel({ caseId }) {
           <button
             onClick={runAnalysis}
             disabled={loading}
-            className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
           >
             {loading ? <Loader2 className="animate-spin" size={16} /> : <AlertTriangle size={16} />}
             {contradictions === null ? 'Analyze Discrepancies' : 'Re-Analyze'}
