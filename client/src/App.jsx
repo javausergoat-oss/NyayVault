@@ -20,6 +20,7 @@ import { Lock, FolderKanban } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './hooks/useTranslation';
 import { NotificationProvider } from './hooks/useNotifications';
+import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ui/ErrorBoundary';
 
 function EvidenceRestrictedBoundary({ onGoToCases }) {
@@ -225,6 +226,7 @@ function AppContent() {
           onToggleMobileNav={() => setMobileNavOpen(prev => !prev)}
           onSelectCase={handleCaseSelect}
           onViewChange={handleViewChange}
+          onSwitchUser={handleLoginSuccess}
         />
 
         <main className="flex-1 p-5 sm:p-7 lg:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
@@ -277,7 +279,9 @@ export default function App() {
     <ErrorBoundary>
       <LanguageProvider>
         <NotificationProvider>
-          <AppContent />
+          <ToastProvider>
+            <AppContent />
+          </ToastProvider>
         </NotificationProvider>
       </LanguageProvider>
     </ErrorBoundary>

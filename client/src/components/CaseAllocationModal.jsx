@@ -15,9 +15,12 @@ import {
 } from 'lucide-react';
 import { getUsers, assignCase } from '../services/api';
 import { useTranslation } from '../hooks/useTranslation';
+import { useToast } from '../context/ToastContext';
+import ShimmerButton from './ui/ShimmerButton';
 
 export default function CaseAllocationModal({ caseItem, onClose, onSuccess }) {
   const { t } = useTranslation();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(true);
   const [users, setUsers] = useState([]);
@@ -106,10 +109,13 @@ export default function CaseAllocationModal({ caseItem, onClose, onSuccess }) {
       if (onSuccess) {
         onSuccess(res.case || caseItem);
       }
+      toast.success(`Bench & counsels assigned to ${caseItem.case_number || 'case'}`, 'Allocation Confirmed');
       onClose();
     } catch (err) {
       console.error('Failed to allocate case:', err);
-      setError(err.message || 'Failed to complete allocation.');
+      const errMsg = err.message || 'Failed to complete allocation.';
+      setError(errMsg);
+      toast.error(errMsg, 'Allocation Failed');
     } finally {
       setLoading(false);
     }
@@ -142,161 +148,146 @@ export default function CaseAllocationModal({ caseItem, onClose, onSuccess }) {
               <X size={18} />
             </button>
           </div>
-
-          {/* Case Summary Bar */}
-          <div className="mt-4 p-3 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div>
-              <span className="text-blue-200 font-mono font-bold mr-2">{caseItem.case_number}</span>
-              <span className="font-bold text-white">{caseItem.title}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-300 text-[11px]">{t('Investigating Officer:')}</span>
-              <span className="font-semibold text-white">{caseItem.created_by_name || 'Insp. Krishna Chhabra'}</span>
-            </div>
-          </div>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
-            <AlertCircle size={16} className="shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+        {/* Allocation Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {error && (
+            <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          
-          {/* Top Auto-Allocate Banner */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/70 dark:border-blue-900/40">
-            <div className="flex items-center gap-2 text-xs text-blue-900 dark:text-blue-200">
-              <Sparkles size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
-              <span>{t('Use the judicial roaster algorithm to auto-balance workload across open benches.')}</span>
+          {/* Quick Case Info Strip */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <FileText size={15} className="text-slate-400" />
+              <span className="font-mono font-bold text-slate-900 dark:text-white">{caseItem?.case_number}</span>
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-600 dark:text-slate-300 truncate max-w-xs">{caseItem?.title}</span>
             </div>
             <button
               type="button"
               onClick={handleAutoAllocate}
-              disabled={usersLoading}
-              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 text-[11px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 flex items-center gap-1 transition-colors cursor-pointer"
             >
-              {t('Auto-Allocate Roaster')}
+              <Sparkles size={12} />
+              <span>{t('Auto-Fill Roster')}</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* Field 1: Judicial Officer (Judge / Magistrate) */}
+            {/* 1. Presiding Judge */}
             <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Gavel size={14} className="text-indigo-600 dark:text-indigo-400" />
-                <span>{t('Presiding Judicial Officer (Judge / Magistrate)')}</span>
+                <Gavel size={14} className="text-blue-600 dark:text-blue-400" />
+                <span>{t('Presiding Judicial Officer / Magistrate')}</span>
                 <span className="text-rose-500">*</span>
               </label>
               <select
-                required
                 value={selectedJudge}
                 onChange={(e) => setSelectedJudge(e.target.value)}
-                disabled={usersLoading}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                required
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-hidden"
               >
-                <option value="">{usersLoading ? t('Loading magistrates...') : t('-- Select Presiding Judge / Magistrate --')}</option>
+                <option value="">-- {t('Select Presiding Judge')} --</option>
                 {judges.map(j => (
                   <option key={j.id} value={j.id}>
-                    {j.full_name} ({j.badge_number}) — {j.department || 'District Court'} [Active Bench]
+                    {j.full_name} ({j.badge_number}) • {j.email}
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-400">
-                {t('Authorized to issue judicial remand, admit exhibits, and pronounce verdicts.')}
-              </p>
             </div>
 
-            {/* Field 2: Public Prosecutor */}
+            {/* 2. Public Prosecutor */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400" />
-                <span>{t('Public Prosecutor (State Counsel)')}</span>
+                <span>{t('Public Prosecutor / State Counsel')}</span>
                 <span className="text-rose-500">*</span>
               </label>
               <select
-                required
                 value={selectedProsecutor}
                 onChange={(e) => setSelectedProsecutor(e.target.value)}
-                disabled={usersLoading}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                required
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-hidden"
               >
-                <option value="">{usersLoading ? t('Loading prosecutors...') : t('-- Select State Prosecutor --')}</option>
+                <option value="">-- {t('Select Prosecution Counsel')} --</option>
                 {prosecutors.map(p => (
                   <option key={p.id} value={p.id}>
-                    {p.full_name} ({p.badge_number}) — {p.department || 'Directorate of Prosecution'}
+                    {p.full_name} ({p.badge_number})
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Field 3: Defense Advocate */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <UserCheck size={14} className="text-purple-600 dark:text-purple-400" />
-                  <span>{t('Defense Counsel')}</span>
-                  <span className="text-rose-500">*</span>
-                </label>
-                <label className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isLegalAid}
-                    onChange={(e) => setIsLegalAid(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>{t('DLSA Legal Aid')}</span>
-                </label>
-              </div>
-              <select
-                required
-                value={selectedDefense}
-                onChange={(e) => setSelectedDefense(e.target.value)}
-                disabled={usersLoading}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none"
-              >
-                <option value="">{usersLoading ? t('Loading advocates...') : t('-- Select Defense Advocate --')}</option>
-                {defenseLawyers.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {d.full_name} ({d.badge_number}) — {d.department || 'Bar Council Registered'}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Field 4: Hearing Date */}
+            {/* 3. Defense Counsel */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Calendar size={14} className="text-blue-600" />
-                <span>{t('First Cause-List / Hearing Date')}</span>
+                <UserCheck size={14} className="text-purple-600 dark:text-purple-400" />
+                <span>{t('Defense Counsel / Legal Aid')}</span>
+                <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={selectedDefense}
+                onChange={(e) => setSelectedDefense(e.target.value)}
+                required
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-hidden"
+              >
+                <option value="">-- {t('Select Defense Counsel')} --</option>
+                {defenseLawyers.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.full_name} ({d.badge_number})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* DLSA Legal Aid Checkbox */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="legalAidCheck"
+              checked={isLegalAid}
+              onChange={(e) => setIsLegalAid(e.target.checked)}
+              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <label htmlFor="legalAidCheck" className="text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none">
+              {t('Assign under Legal Services Authority (DLSA) Free Legal Aid Scheme')}
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Hearing Date */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Calendar size={14} className="text-blue-600 dark:text-blue-400" />
+                <span>{t('First Cause List / Hearing Date')}</span>
               </label>
               <input
                 type="date"
                 value={hearingDate}
                 onChange={(e) => setHearingDate(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-hidden"
               />
             </div>
 
-            {/* Field 5: Allocation Notes */}
+            {/* Allocation Notes */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <FileText size={14} className="text-slate-500" />
-                <span>{t('Registry Bench Memo / Notes')}</span>
+                <Briefcase size={14} className="text-blue-600 dark:text-blue-400" />
+                <span>{t('Registry Directive / Notes')}</span>
               </label>
               <input
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder={t('e.g. Scrutiny cleared. Placed on Fast-Track Cyber Docket.')}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-xs text-slate-900 dark:text-white focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                placeholder="e.g. Scrutiny of FIR and Bail Application"
+                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-hidden"
               />
             </div>
-
           </div>
 
           {/* Footer Actions */}
@@ -314,10 +305,10 @@ export default function CaseAllocationModal({ caseItem, onClose, onSuccess }) {
               >
                 {t('Cancel')}
               </button>
-              <button
+              <ShimmerButton
                 type="submit"
                 disabled={loading}
-                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="text-xs font-bold"
               >
                 {loading ? (
                   <>
@@ -330,7 +321,7 @@ export default function CaseAllocationModal({ caseItem, onClose, onSuccess }) {
                     <span>{t('Confirm & Seal Allocation')}</span>
                   </>
                 )}
-              </button>
+              </ShimmerButton>
             </div>
           </div>
 

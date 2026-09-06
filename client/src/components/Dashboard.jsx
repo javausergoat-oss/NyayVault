@@ -29,9 +29,15 @@ import { StatCardsSkeleton, TableRowsSkeleton } from './ui/Skeleton';
 import { useTranslation } from '../hooks/useTranslation';
 import { canAccessGlobalEvidence } from './Sidebar';
 import { canCreateCase } from './CaseList';
+import NumberTicker from './ui/NumberTicker';
+import BorderBeam from './ui/BorderBeam';
+import JudicialPipelineBadge from './JudicialPipelineBadge';
+import ShimmerButton from './ui/ShimmerButton';
+import { useToast } from '../context/ToastContext';
 
 export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
   const { t, language } = useTranslation();
+  const toast = useToast();
   const [cases, setCases] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -78,11 +84,12 @@ export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
     e.preventDefault();
     try {
       await createCase(newCaseData);
+      toast.success(`Case docket ${newCaseData.caseNumber} registered in ledger`, 'Case File Created');
       setShowCreateModal(false);
       setNewCaseData({ caseNumber: '', title: '', description: '', securityLevel: 'RESTRICTED' });
       await loadDashboard();
     } catch (err) {
-      alert("Failed to create case: " + err.message);
+      toast.error(err.message || 'Failed to create case', 'Action Failed');
     }
   };
 
@@ -151,21 +158,21 @@ export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
           </div>
 
           {canCreateCase(currentUser?.role) && (
-            <button
-              type="button"
+            <ShimmerButton
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-bold transition-all shadow-md shadow-blue-600/20 flex items-center gap-1.5 cursor-pointer"
+              className="text-xs font-bold"
             >
               <Plus size={16} />
               <span>{t('Create Case')}</span>
-            </button>
+            </ShimmerButton>
           )}
         </div>
       </div>
 
       {/* Court Registrar Urgent Allocation Alert Banner */}
       {isRegistrar && unallocatedCases.length > 0 && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="relative overflow-hidden p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <BorderBeam size={320} duration={8} colorFrom="#f59e0b" colorTo="#ef4444" />
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
               <Scale size={20} />
@@ -205,7 +212,7 @@ export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
               </div>
               <div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white">
-                  {cases.length}
+                  <NumberTicker value={cases.length} />
                 </div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {t('Active Cases')}
@@ -233,7 +240,7 @@ export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
               </div>
               <div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white">
-                  {documents.length}
+                  <NumberTicker value={documents.length} />
                 </div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {canAccessGlobalEvidence(currentUser?.role) ? t('Total Evidence') : t('Case Exhibits')}
@@ -254,7 +261,7 @@ export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
               </div>
               <div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white">
-                  {isRegistrar ? unallocatedCases.length : cases.filter(c => c.status === 'INVESTIGATION' || c.status === 'Review').length}
+                  <NumberTicker value={isRegistrar ? unallocatedCases.length : cases.filter(c => c.status === 'INVESTIGATION' || c.status === 'Review').length} />
                 </div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {isRegistrar ? t('Awaiting Allocation') : t('Needs Review')}
@@ -275,7 +282,7 @@ export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
               </div>
               <div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white">
-                  11
+                  <NumberTicker value={11} />
                 </div>
                 <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {t('Team Members')}
@@ -286,6 +293,9 @@ export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
           </div>
         </div>
       )}
+
+      {/* ICJS Live Judicial Mesh Pipeline */}
+      <JudicialPipelineBadge />
 
 
       {/* 2-Column Main Layout: Left 65% / Right 35% */}

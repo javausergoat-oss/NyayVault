@@ -17,6 +17,8 @@ import { getCases, createCase } from '../services/api';
 import { CaseCardSkeleton } from './ui/Skeleton';
 import { useTranslation } from '../hooks/useTranslation';
 import CaseAllocationModal from './CaseAllocationModal';
+import { useToast } from '../context/ToastContext';
+import ShimmerButton from './ui/ShimmerButton';
 
 export const canCreateCase = (role) => {
   return ['INVESTIGATING_OFFICER', 'REGISTRAR', 'COURT_REGISTRAR', 'ADMIN'].includes(role);
@@ -24,6 +26,7 @@ export const canCreateCase = (role) => {
 
 export default function CaseList({ onCaseSelect, currentUser }) {
   const { t } = useTranslation();
+  const toast = useToast();
   const [cases, setCases] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [allocatingCase, setAllocatingCase] = useState(null);
@@ -59,16 +62,17 @@ export default function CaseList({ onCaseSelect, currentUser }) {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!isCaseCreator) {
-      alert('Forbidden: Only Police Investigators and Court Registrars can open new case dockets.');
+      toast.error('Only Police Investigators and Court Registrars can open new case dockets.', 'Access Denied');
       return;
     }
     try {
       await createCase(newCase);
+      toast.success(`Case docket ${newCase.caseNumber} registered in ledger`, 'Case File Created');
       setShowModal(false);
       setNewCase({ caseNumber: '', title: '', description: '', securityLevel: 'RESTRICTED' });
       loadCases();
     } catch (err) {
-      alert('Failed to create case: ' + err.message);
+      toast.error(err.message || 'Failed to create case', 'Action Failed');
     }
   };
 
@@ -90,12 +94,12 @@ export default function CaseList({ onCaseSelect, currentUser }) {
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{t('Select an investigation file to access evidence, transcripts, and cryptographic audits.')}</p>
         </div>
         {isCaseCreator && (
-          <button 
-            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer" 
+          <ShimmerButton 
             onClick={() => setShowModal(true)}
+            className="text-xs font-bold"
           >
             <Plus size={16} /> {t('Open New Case File')}
-          </button>
+          </ShimmerButton>
         )}
       </div>
 

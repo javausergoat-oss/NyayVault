@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { useNotifications } from '../hooks/useNotifications';
+import CommandPalette from './CommandPalette';
 
 export default function TopHeader({ 
   currentUser, 
@@ -29,7 +30,8 @@ export default function TopHeader({
   onSearchClick, 
   onToggleMobileNav,
   onSelectCase,
-  onViewChange
+  onViewChange,
+  onSwitchUser
 }) {
   const { t, language, toggleLanguage } = useTranslation();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
@@ -37,6 +39,7 @@ export default function TopHeader({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState('all'); // 'all' | 'unread'
+  const [commandOpen, setCommandOpen] = useState(false);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -55,12 +58,17 @@ export default function TopHeader({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Close on Escape key
+  // Handle shortcuts (ESC and Cmd+K / Ctrl+K)
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
         setNotifOpen(false);
         setDropdownOpen(false);
+        setCommandOpen(false);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandOpen(prev => !prev);
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -112,7 +120,8 @@ export default function TopHeader({
   };
 
   return (
-    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors select-none">
+    <>
+      <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 transition-colors select-none">
       {/* Mobile Menu Toggle + Search Bar */}
       <div className="flex items-center flex-1 max-w-xl">
         <button
@@ -128,7 +137,7 @@ export default function TopHeader({
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
-            onClick={onSearchClick}
+            onClick={() => setCommandOpen(true)}
             placeholder={t('Search evidence, cases, people...')}
             className="w-full pl-10 pr-12 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all cursor-pointer"
             readOnly
@@ -358,5 +367,16 @@ export default function TopHeader({
         </div>
       </div>
     </header>
-  );
+
+    <CommandPalette
+      isOpen={commandOpen}
+      onClose={() => setCommandOpen(false)}
+      onSelectCase={onSelectCase}
+      onViewChange={onViewChange}
+      theme={theme}
+      toggleTheme={toggleTheme}
+      onSwitchUser={onSwitchUser}
+    />
+  </>
+);
 }
