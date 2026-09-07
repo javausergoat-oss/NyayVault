@@ -161,3 +161,35 @@ export async function assignCase(caseId, allocationData) {
 export async function getCaseAssignments(caseId) {
   return fetchApi(`/cases/${caseId}/assignments`);
 }
+
+export async function verifyAuditChain(caseId = null) {
+  const url = caseId ? `/audit/verify-chain?caseId=${encodeURIComponent(caseId)}` : '/audit/verify-chain';
+  return fetchApi(url);
+}
+
+export async function signExhibit(documentId) {
+  return fetchApi(`/documents/${documentId}/sign`, { method: 'POST' });
+}
+
+export async function getBsaCertificate(documentId) {
+  return fetchApi(`/documents/${documentId}/pki-certificate`);
+}
+
+export async function getAiMode() {
+  return fetchApi('/intelligence/ai-mode');
+}
+
+export async function setAiMode(mode) {
+  return fetchApi('/intelligence/ai-mode', {
+    method: 'POST',
+    body: { mode },
+  });
+}
+
+export async function simulateTamper(documentId) {
+  return fetchApi(`/dev/tamper/${documentId}`, { method: 'POST' });
+}
+
+export async function restoreTamper(documentId) {
+  return fetchApi(`/dev/restore/${documentId}`, { method: 'POST' });
+}

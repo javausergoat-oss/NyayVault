@@ -2,8 +2,37 @@ import { OpenAI } from 'openai';
 
 const GOOGLE_AI_STUDIO_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+const LOCAL_OLLAMA_BASE_URL = 'http://localhost:11434/v1';
+
+let activeAiMode = process.env.AI_MODE || 'CLOUD_GEMINI'; // 'CLOUD_GEMINI' or 'LOCAL_AIRGAPPED'
+
+export function setAiMode(mode) {
+  if (['CLOUD_GEMINI', 'LOCAL_AIRGAPPED'].includes(mode)) {
+    activeAiMode = mode;
+  }
+  return getAiModeStatus();
+}
+
+export function getAiModeStatus() {
+  return {
+    mode: activeAiMode,
+    isAirGapped: activeAiMode === 'LOCAL_AIRGAPPED',
+    activeProvider: activeAiMode === 'LOCAL_AIRGAPPED' ? 'Ollama / Local Air-Gapped Engine (MHA On-Premise)' : getAiConfig()?.provider || 'Offline Fallback',
+    model: activeAiMode === 'LOCAL_AIRGAPPED' ? 'llama3:8b-instruct-q4 (Local)' : getAiConfig()?.chatModel || 'gemini-3.6-flash',
+  };
+}
 
 export function getAiConfig() {
+  if (activeAiMode === 'LOCAL_AIRGAPPED') {
+    return {
+      provider: 'ollama-airgapped',
+      apiKey: 'ollama-local-key',
+      baseURL: LOCAL_OLLAMA_BASE_URL,
+      chatModel: 'llama3',
+      embeddingModel: 'nomic-embed-text',
+    };
+  }
+
   const googleApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (googleApiKey) {
     return {

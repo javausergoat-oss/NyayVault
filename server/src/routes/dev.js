@@ -54,4 +54,78 @@ router.post('/assign', async (req, res) => {
   }
 });
 
+const tamperBackupMap = new Map();
+
+/**
+ * POST /api/dev/tamper/:documentId
+ * Live Hackathon Presentation Tool: Intentionally modifies 1 byte in storage blob
+ * to demonstrate live red TAMPER_DETECTED warning badge in UI.
+ */
+router.post('/tamper/:documentId', async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const docRes = await query('SELECT * FROM documents WHERE id = $1', [documentId]);
+    if (docRes.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
+    const doc = docRes.rows[0];
+
+    const { getObjectStream, uploadObject } = await import('../storage/s3Client.js');
+    const { stream } = await getObjectStream({ key: doc.storage_key });
+
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const originalBuffer = Buffer.concat(chunks);
+
+    if (!tamperBackupMap.has(doc.id)) {
+      tamperBackupMap.set(doc.id, originalBuffer);
+    }
+
+    // Mutate 1 byte
+    const tamperedBuffer = Buffer.from(originalBuffer);
+    if (tamperedBuffer.length > 0) {
+      tamperedBuffer[0] = tamperedBuffer[0] === 65 ? 66 : 65; // flip byte
+    }
+
+    await uploadObject({ key: doc.storage_key, buffer: tamperedBuffer, contentType: doc.mime_type });
+
+    res.json({
+      success: true,
+      documentId: doc.id,
+      isTampered: true,
+      message: '1 byte altered in storage. Live Cryptographic Check will now flag TAMPER_DETECTED.',
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+/**
+ * POST /api/dev/restore/:documentId
+ * Restores original un-tampered storage bytes.
+ */
+router.post('/restore/:documentId', async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const docRes = await query('SELECT * FROM documents WHERE id = $1', [documentId]);
+    if (docRes.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
+    const doc = docRes.rows[0];
+
+    if (!tamperBackupMap.has(doc.id)) {
+      return res.status(400).json({ error: 'No backup found for this document; it was not tampered with.' });
+    }
+
+    const originalBuffer = tamperBackupMap.get(doc.id);
+    const { uploadObject } = await import('../storage/s3Client.js');
+    await uploadObject({ key: doc.storage_key, buffer: originalBuffer, contentType: doc.mime_type });
+
+    res.json({
+      success: true,
+      documentId: doc.id,
+      isTampered: false,
+      message: 'Storage object restored to authentic state. Live Check will now flag VERIFIED_AUTHENTIC.',
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;

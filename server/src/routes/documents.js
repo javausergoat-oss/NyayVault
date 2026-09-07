@@ -170,5 +170,41 @@ router.post('/:documentId/redact/apply', verifyDocAccess, requireRole(['INVESTIG
   }
 });
 
+/**
+ * POST /api/documents/:documentId/sign
+ * Digitally signs the evidence document exhibit using RSA-2048 / SHA-256 PKI signature.
+ */
+router.post('/:documentId/sign', verifyDocAccess, async (req, res, next) => {
+  try {
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const { signExhibitDocument } = await import('../services/pkiService.js');
+    const signatureMetadata = await signExhibitDocument(req.params.documentId, req.user, ipAddress);
+
+    res.json({
+      success: true,
+      message: 'Exhibit successfully signed with RSA-2048 PKI Digital Signature.',
+      signature: signatureMetadata,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/documents/:documentId/pki-certificate
+ * Generates official Bharatiya Sakshya Adhiniyam (BSA 2023) Section 63 Electronic Evidence Certificate.
+ */
+router.get('/:documentId/pki-certificate', verifyDocAccess, async (req, res, next) => {
+  try {
+    const { generateBsaCertificate } = await import('../services/pkiService.js');
+    const certificate = await generateBsaCertificate(req.params.documentId);
+    res.json({
+      success: true,
+      certificate,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;

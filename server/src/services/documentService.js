@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/db.js';
 import { uploadObject, getObjectStream, deleteObject } from '../storage/s3Client.js';
@@ -337,7 +338,7 @@ export async function applyRedactionsToDocument(documentId, redactions, user, ip
   const newStorageKey = `cases/${originalDoc.case_id}/${newId}-redacted.txt`;
 
   // Upload to MinIO
-  await uploadFile(newStorageKey, buffer, 'text/plain');
+  await uploadObject({ key: newStorageKey, buffer, contentType: 'text/plain' });
 
   // Insert into DB
   const sql = `

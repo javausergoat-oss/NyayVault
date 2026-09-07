@@ -87,7 +87,13 @@ export async function initDatabase() {
       ALTER TABLE documents ADD COLUMN IF NOT EXISTS document_category VARCHAR(50) DEFAULT 'GENERAL';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
       ALTER TABLE cases ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'INVESTIGATION';
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS previous_hash VARCHAR(64) DEFAULT '0000000000000000000000000000000000000000000000000000000000000000';
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS block_hash VARCHAR(64);
     `);
+
+    // Auto-rechain existing audit logs for cryptographic consistency
+    const { rechainAuditLogs } = await import('../services/auditService.js');
+    await rechainAuditLogs();
 
     isEmbeddedMode = true;
     console.log('Embedded PostgreSQL engine initialized at:', dataDir);

@@ -11,9 +11,11 @@ import {
   Lock, 
   RefreshCw,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Link as LinkIcon,
+  GitCommit
 } from 'lucide-react';
-import { getGlobalAuditLogs } from '../services/api';
+import { getGlobalAuditLogs, verifyAuditChain } from '../services/api';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -22,6 +24,8 @@ export default function AuditTrailHub() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
+  const [chainStatus, setChainStatus] = useState(null);
+  const [verifyingChain, setVerifyingChain] = useState(false);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -32,6 +36,18 @@ export default function AuditTrailHub() {
       console.error('Failed to load global audit trail:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyChain = async () => {
+    setVerifyingChain(true);
+    try {
+      const res = await verifyAuditChain();
+      setChainStatus(res.chainVerification);
+    } catch (err) {
+      console.error('Chain verification error:', err);
+    } finally {
+      setVerifyingChain(false);
     }
   };
 
@@ -156,6 +172,15 @@ export default function AuditTrailHub() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
+            onClick={handleVerifyChain}
+            disabled={verifyingChain}
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+          >
+            <GitCommit size={15} className={verifyingChain ? 'animate-spin' : ''} />
+            <span>Verify Blockchain Merkle Chain</span>
+          </button>
+          <button
+            type="button"
             onClick={fetchLogs}
             disabled={loading}
             className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
@@ -173,6 +198,39 @@ export default function AuditTrailHub() {
           </button>
         </div>
       </div>
+
+      {chainStatus && (
+        <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 transition-all shadow-sm ${
+          chainStatus.isIntact 
+            ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200' 
+            : 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            {chainStatus.isIntact ? (
+              <CheckCircle2 size={24} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle size={24} className="text-rose-600 dark:text-rose-400 shrink-0" />
+            )}
+            <div>
+              <div className="font-bold text-sm flex items-center gap-2">
+                <span>{chainStatus.isIntact ? 'SHA-256 Merkle Chain Fully Verified' : 'Cryptographic Chain Tampering Detected!'}</span>
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-white/70 dark:bg-slate-900/60 border border-current">
+                  {chainStatus.totalBlocks} Blocks Verified
+                </span>
+              </div>
+              <p className="text-xs opacity-90 mt-0.5 font-mono text-[11px]">
+                Merkle Root: {chainStatus.merkleRoot}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setChainStatus(null)}
+            className="text-xs font-bold opacity-70 hover:opacity-100 cursor-pointer px-2 py-1"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* 3 Metric Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

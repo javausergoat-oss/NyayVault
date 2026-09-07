@@ -14,9 +14,23 @@ import {
   Loader2, 
   AlertCircle,
   RefreshCw,
-  Gauge
+  Gauge,
+  Key,
+  ShieldCheck,
+  Award,
+  Flame,
+  CheckCircle2,
+  X
 } from 'lucide-react';
-import { fetchDocumentBlob, getDownloadUrl } from '../services/api';
+import { 
+  fetchDocumentBlob, 
+  getDownloadUrl, 
+  signExhibit, 
+  getBsaCertificate, 
+  simulateTamper, 
+  restoreTamper, 
+  verifyDocument 
+} from '../services/api';
 
 export default function DocumentPreviewer({ documentId, filename = '', documentType = 'EVIDENCE' }) {
   const [loading, setLoading] = useState(true);
@@ -28,6 +42,63 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
   const [zoom, setZoom] = useState(1);
   // Video playback speed
   const [playbackRate, setPlaybackRate] = useState(1);
+
+  // PKI & Tamper Demo State
+  const [signing, setSigning] = useState(false);
+  const [signedInfo, setSignedInfo] = useState(null);
+  const [certModal, setCertModal] = useState(null);
+  const [tamperState, setTamperState] = useState(null); // { isTampered, message }
+  const [liveCheckResult, setLiveCheckResult] = useState(null);
+
+  const handleSignExhibit = async () => {
+    setSigning(true);
+    try {
+      const res = await signExhibit(documentId);
+      setSignedInfo(res.signature);
+    } catch (err) {
+      alert('PKI Signature Error: ' + err.message);
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  const handleViewCertificate = async () => {
+    try {
+      const res = await getBsaCertificate(documentId);
+      setCertModal(res.certificate);
+    } catch (err) {
+      alert('Certificate Error: ' + err.message);
+    }
+  };
+
+  const handleSimulateTamper = async () => {
+    try {
+      const res = await simulateTamper(documentId);
+      setTamperState({ isTampered: true, message: res.message });
+      setLiveCheckResult(null);
+    } catch (err) {
+      alert('Tamper Simulation Error: ' + err.message);
+    }
+  };
+
+  const handleRestoreTamper = async () => {
+    try {
+      const res = await restoreTamper(documentId);
+      setTamperState({ isTampered: false, message: res.message });
+      setLiveCheckResult(null);
+    } catch (err) {
+      alert('Restore Error: ' + err.message);
+    }
+  };
+
+  const handleRunLiveCheck = async () => {
+    try {
+      const res = await verifyDocument(documentId);
+      setLiveCheckResult(res.verification);
+    } catch (err) {
+      alert('Verification error: ' + err.message);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -196,6 +267,62 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
             </div>
           )}
 
+          {/* PKI & BSA Certificate Tools */}
+          <button
+            type="button"
+            onClick={handleSignExhibit}
+            disabled={signing}
+            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            title="Digitally Sign Exhibit with RSA-2048 PKI Key"
+          >
+            <Key size={13} className={signing ? 'animate-spin' : ''} />
+            <span className="hidden sm:inline">Sign PKI</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleViewCertificate}
+            className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            title="View BSA 2023 Sec 63 Certificate"
+          >
+            <Award size={13} />
+            <span className="hidden sm:inline">BSA Sec 63 Cert</span>
+          </button>
+
+          {/* Tamper Simulation Demo Tool */}
+          <div className="flex items-center gap-1 border-l border-slate-300 dark:border-slate-700 pl-2 ml-1">
+            {!tamperState?.isTampered ? (
+              <button
+                type="button"
+                onClick={handleSimulateTamper}
+                className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                title="Hackathon Live Demo: Mutate 1 byte in storage to test alert"
+              >
+                <Flame size={12} />
+                <span>Simulate Tamper</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRestoreTamper}
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-emerald-500/50"
+                title="Restore original authentic storage blob"
+              >
+                <RotateCcw size={12} />
+                <span>Restore Exhibit</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleRunLiveCheck}
+              className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <ShieldCheck size={12} className="text-emerald-400" />
+              <span>Verify SHA-256</span>
+            </button>
+          </div>
+
           {/* Direct Open & Download */}
           <a
             href={fileData?.objectUrl}
@@ -305,6 +432,115 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
           </div>
         )}
       </div>
+
+      {/* Live Verification / Tamper Banners */}
+      {(signedInfo || liveCheckResult || tamperState) && (
+        <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 space-y-2">
+          {signedInfo && (
+            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs text-emerald-900 dark:text-emerald-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <span className="font-bold">Digitally Signed (RSA-2048 / SHA-256):</span>
+                <span className="font-mono text-[11px] opacity-80">{signedInfo.signedBy} ({signedInfo.badgeNumber})</span>
+              </div>
+              <span className="font-mono text-[10px] bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded font-bold">
+                Key Fingerprint: {signedInfo.keyFingerprint}
+              </span>
+            </div>
+          )}
+
+          {liveCheckResult && (
+            <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-bold ${
+              liveCheckResult.isTamperFree 
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800' 
+                : 'bg-rose-50 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className={liveCheckResult.isTamperFree ? 'text-emerald-600' : 'text-rose-600 animate-bounce'} />
+                <span>{liveCheckResult.isTamperFree ? 'VERIFIED AUTHENTIC: Live SHA-256 Checksum Matches Vault Fingerprint' : '🚨 TAMPER DETECTED: Storage bytes do not match SHA-256 Checksum!'}</span>
+              </div>
+              <span className="font-mono text-[10px] font-bold">
+                {liveCheckResult.computedHash.substring(0, 16)}...
+              </span>
+            </div>
+          )}
+
+          {tamperState && !liveCheckResult && (
+            <div className={`p-2 rounded-xl text-xs font-bold flex items-center justify-between ${
+              tamperState.isTampered ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+            }`}>
+              <span>{tamperState.message}</span>
+              <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-white/60 rounded">Demo Action</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* BSA 2023 Section 63 Electronic Evidence Certificate Modal */}
+      {certModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-wider">
+                <Award size={18} />
+                <span>Section 63 BSA 2023 Electronic Certificate</span>
+              </div>
+              <button 
+                onClick={() => setCertModal(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 font-mono space-y-1">
+                <div className="flex justify-between font-bold text-slate-900 dark:text-white">
+                  <span>Cert ID: {certModal.certificateId}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">VALID ADMISSIBLE</span>
+                </div>
+                <div className="text-[11px] text-slate-500">Issued: {new Date(certModal.issuedAt).toLocaleString('en-IN')}</div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[10px]">Statutory Legal Declaration:</span>
+                <p className="text-slate-600 dark:text-slate-300 italic bg-blue-50/50 dark:bg-blue-950/30 p-3 rounded-xl border border-blue-100 dark:border-blue-900/40 text-[11px]">
+                  "{certModal.legalDeclaration}"
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                  <span className="font-bold text-slate-500 block text-[10px]">CASE DETAILS</span>
+                  <div className="font-bold text-slate-900 dark:text-white mt-1">{certModal.caseInfo.caseNumber}</div>
+                  <div className="text-slate-500 truncate">{certModal.caseInfo.title}</div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+                  <span className="font-bold text-slate-500 block text-[10px]">CERTIFYING CUSTODIAN</span>
+                  <div className="font-bold text-slate-900 dark:text-white mt-1">{certModal.custodian.name}</div>
+                  <div className="text-slate-500">{certModal.custodian.badgeNumber} • {certModal.custodian.department}</div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-900 text-white font-mono text-[10px] space-y-1">
+                <div className="text-slate-400 uppercase font-bold">Cryptographic Digest & Seal</div>
+                <div className="truncate text-emerald-400">SHA-256: {certModal.evidenceExhibit.sha256Hash}</div>
+                <div className="text-slate-400">Key Fingerprint: {certModal.pkiSignature.keyFingerprint} ({certModal.pkiSignature.algorithm})</div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setCertModal(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 text-xs font-bold cursor-pointer"
+              >
+                Close Certificate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

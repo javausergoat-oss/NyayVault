@@ -19,4 +19,32 @@ router.get('/cross-case', requireRole(['INVESTIGATING_OFFICER']), async (req, re
   }
 });
 
+/**
+ * GET /api/intelligence/ai-mode
+ * Gets current AI Engine mode (CLOUD_GEMINI vs LOCAL_AIRGAPPED).
+ */
+router.get('/ai-mode', async (req, res, next) => {
+  try {
+    const { getAiModeStatus } = await import('../services/aiService.js');
+    res.json({ success: true, status: getAiModeStatus() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/intelligence/ai-mode
+ * Toggles AI Engine mode between CLOUD_GEMINI and LOCAL_AIRGAPPED.
+ */
+router.post('/ai-mode', async (req, res, next) => {
+  try {
+    const { mode } = req.body;
+    const { setAiMode } = await import('../services/aiService.js');
+    const status = setAiMode(mode);
+    res.json({ success: true, status });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

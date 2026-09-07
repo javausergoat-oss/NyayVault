@@ -25,7 +25,9 @@ router.get('/', async (req, res, next) => {
         a.action,
         a.timestamp,
         a.ip_address,
-        a.metadata
+        a.metadata,
+        a.previous_hash,
+        a.block_hash
       FROM audit_logs a
       LEFT JOIN users u ON a.user_id = u.id
       LEFT JOIN cases c ON a.case_id = c.id
@@ -39,6 +41,24 @@ router.get('/', async (req, res, next) => {
       success: true,
       count: result.rows.length,
       auditLogs: result.rows,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/audit/verify-chain
+ * Performs live cryptographic verification of the SHA-256 Merkle Hash Chain across audit blocks.
+ */
+router.get('/verify-chain', async (req, res, next) => {
+  try {
+    const { caseId } = req.query;
+    const { verifyAuditChain } = await import('../services/auditService.js');
+    const result = await verifyAuditChain(caseId || null);
+    res.json({
+      success: true,
+      chainVerification: result,
     });
   } catch (err) {
     next(err);

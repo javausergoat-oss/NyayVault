@@ -245,8 +245,95 @@ async function runE2ETests() {
       throw new Error(`Invalid extension was not rejected! Status: ${invalidExtRes.status}`);
     }
 
+    // ------------------------------------------------------------------------
+    // TEST 11: SHA-256 Merkle Blockchain Hash Chain Verification
+    // ------------------------------------------------------------------------
+    const verifyChainRes = await fetch(`${BASE_URL}/audit/verify-chain`, { headers: authHeaders }).then((r) => r.json());
+    if (verifyChainRes.success && verifyChainRes.chainVerification?.isIntact === true) {
+      logPass(`SHA-256 Merkle Chain Verified. Total blocks: ${verifyChainRes.chainVerification.totalBlocks}, Root: ${verifyChainRes.chainVerification.merkleRoot.substring(0, 16)}...`);
+    } else {
+      throw new Error(`Hash chain verification failed: ${JSON.stringify(verifyChainRes)}`);
+    }
+
+    // ------------------------------------------------------------------------
+    // TEST 12: PKI RSA-2048 Digital Signature & BSA Sec 63 Certificate
+    // ------------------------------------------------------------------------
+    const signRes = await fetch(`${BASE_URL}/documents/${docRecord.id}/sign`, {
+      method: 'POST',
+      headers: authHeaders,
+    }).then((r) => r.json());
+
+    if (signRes.success && signRes.signature?.keyFingerprint) {
+      logPass(`PKI RSA-2048 Digital Signature attached: Key Fingerprint = ${signRes.signature.keyFingerprint}`);
+    } else {
+      throw new Error(`PKI signing failed: ${JSON.stringify(signRes)}`);
+    }
+
+    const certRes = await fetch(`${BASE_URL}/documents/${docRecord.id}/pki-certificate`, { headers: authHeaders }).then((r) => r.json());
+    if (certRes.success && certRes.certificate?.certificateId) {
+      logPass(`BSA 2023 Sec 63 Certificate generated: ID = ${certRes.certificate.certificateId}`);
+    } else {
+      throw new Error(`BSA Certificate generation failed: ${JSON.stringify(certRes)}`);
+    }
+
+    // ------------------------------------------------------------------------
+    // TEST 13: Live Storage Tamper Simulation (Mutate 1 byte -> TAMPER_DETECTED)
+    // ------------------------------------------------------------------------
+    const tamperSimRes = await fetch(`${BASE_URL}/dev/tamper/${docRecord.id}`, { method: 'POST' }).then((r) => r.json());
+    if (tamperSimRes.success && tamperSimRes.isTampered) {
+      logPass('Live Tamper Simulation triggered: 1 byte altered in storage.');
+    } else {
+      throw new Error(`Tamper simulation failed: ${JSON.stringify(tamperSimRes)}`);
+    }
+
+    const postTamperVerifyRes = await fetch(`${BASE_URL}/documents/${docRecord.id}/verify`, { headers: authHeaders }).then((r) => r.json());
+    if (postTamperVerifyRes.success && postTamperVerifyRes.verification?.isTamperFree === false) {
+      logPass(`Live Tamper Detection confirmed: Status = ${postTamperVerifyRes.verification.status} (TAMPER_DETECTED)`);
+    } else {
+      throw new Error(`Tamper detection failed! Output: ${JSON.stringify(postTamperVerifyRes)}`);
+    }
+
+    // ------------------------------------------------------------------------
+    // TEST 14: Storage Restoration (TAMPER_DETECTED -> VERIFIED_AUTHENTIC)
+    // ------------------------------------------------------------------------
+    const restoreRes = await fetch(`${BASE_URL}/dev/restore/${docRecord.id}`, { method: 'POST' }).then((r) => r.json());
+    if (restoreRes.success && !restoreRes.isTampered) {
+      logPass('Storage restoration completed.');
+    } else {
+      throw new Error(`Storage restoration failed: ${JSON.stringify(restoreRes)}`);
+    }
+
+    const postRestoreVerifyRes = await fetch(`${BASE_URL}/documents/${docRecord.id}/verify`, { headers: authHeaders }).then((r) => r.json());
+    if (postRestoreVerifyRes.success && postRestoreVerifyRes.verification?.isTamperFree === true) {
+      logPass(`Post-restoration status confirmed: ${postRestoreVerifyRes.verification.status} (VERIFIED_AUTHENTIC)`);
+    } else {
+      throw new Error(`Post-restoration verify failed: ${JSON.stringify(postRestoreVerifyRes)}`);
+    }
+
+    // ------------------------------------------------------------------------
+    // TEST 15: Air-Gapped Local AI Engine Mode Toggle
+    // ------------------------------------------------------------------------
+    const toggleAiRes = await fetch(`${BASE_URL}/intelligence/ai-mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ mode: 'LOCAL_AIRGAPPED' }),
+    }).then((r) => r.json());
+
+    if (toggleAiRes.success && toggleAiRes.status?.isAirGapped === true) {
+      logPass(`Air-Gapped AI Engine Mode active: ${toggleAiRes.status.activeProvider}`);
+    } else {
+      throw new Error(`AI Mode toggle failed: ${JSON.stringify(toggleAiRes)}`);
+    }
+
+    // Revert AI mode back to cloud
+    await fetch(`${BASE_URL}/intelligence/ai-mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ mode: 'CLOUD_GEMINI' }),
+    });
+
     console.log('\n======================================================');
-    console.log(' ALL 10 PHASE 1 VERIFICATION TESTS PASSED SUCCESSFULLY! ');
+    console.log(' ALL 15 AUTOMATED VERIFICATION TESTS PASSED SUCCESSFULLY! ');
     console.log('======================================================\n');
   } catch (err) {
     logFail('E2E Test Execution failed with error:', err);
