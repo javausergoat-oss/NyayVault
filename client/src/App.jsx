@@ -197,7 +197,13 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <Login 
+        onLoginSuccess={handleLoginSuccess} 
+        theme={theme} 
+        toggleTheme={toggleTheme} 
+      />
+    );
   }
 
   return (
