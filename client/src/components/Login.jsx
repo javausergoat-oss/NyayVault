@@ -1,29 +1,20 @@
 import { useState } from 'react';
 import { 
-  Shield, 
+  Fingerprint, 
   Lock, 
   Loader2, 
   AlertCircle, 
+  ShieldCheck, 
+  Link2, 
+  Users, 
+  FileText, 
   Eye, 
   EyeOff, 
-  User,
-  Link2,
-  Users,
-  FileText,
-  Scale,
-  ShieldCheck,
-  ArrowRight,
-  Sparkles
+  Landmark, 
+  Scale, 
+  ArrowRight 
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-
-const DEMO_PRESETS = [
-  { id: 'POL-1', label: 'Police IO (POL-1)' },
-  { id: 'JUD-1', label: 'Judge (JUD-1)' },
-  { id: 'ADV-1', label: 'Defense (ADV-1)' },
-  { id: 'ADV-2', label: 'Prosecutor (ADV-2)' },
-  { id: 'REG-1', label: 'Registrar (REG-1)' }
-];
+import { motion } from 'framer-motion';
 
 export default function Login({ onLoginSuccess }) {
   const [badgeNumber, setBadgeNumber] = useState('');
@@ -31,17 +22,15 @@ export default function Login({ onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showDemoMenu, setShowDemoMenu] = useState(false);
 
-  const handleSelectPreset = (badgeId) => {
-    setBadgeNumber(badgeId);
+  const handleQuickFill = (roleBadge) => {
+    setBadgeNumber(roleBadge);
     setPassword('sih2026');
-    setShowDemoMenu(false);
     setError('');
   };
 
   const handleLogin = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     setError('');
     setLoading(true);
 
@@ -49,18 +38,18 @@ export default function Login({ onLoginSuccess }) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ badge_number: badgeNumber.trim(), password })
+        body: JSON.stringify({ badge_number: badgeNumber, password })
       });
 
-      let data;
+      let data = null;
       try {
         data = await res.json();
-      } catch {
-        throw new Error('Backend server is unreachable. Please verify API connection.');
+      } catch (e) {
+        throw new Error('Backend server unreachable. Ensure server is running on port 5001.');
       }
       
       if (!res.ok) {
-        throw new Error(data.error || 'Invalid credentials. Please verify and try again.');
+        throw new Error(data?.error || `Authentication failed (${res.status})`);
       }
 
       localStorage.setItem('sih_token', data.token);
@@ -76,323 +65,241 @@ export default function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#f8fafd] text-slate-800 flex flex-col justify-between relative overflow-hidden font-sans selection:bg-blue-600 selection:text-white">
-      {/* Soft abstract ambient curves as seen in the reference mockup */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-blue-100/60 via-indigo-50/40 to-transparent rounded-full blur-3xl pointer-events-none -mr-40 -mt-40" />
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-blue-100/70 via-sky-50/50 to-transparent rounded-full blur-3xl pointer-events-none -ml-40 -mb-40" />
-      <div className="absolute bottom-0 right-0 w-[450px] h-[450px] bg-gradient-to-tl from-slate-100/80 to-transparent rounded-full blur-2xl pointer-events-none" />
-
-      {/* Top Navbar */}
-      <header className="relative z-20 w-full px-6 lg:px-12 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <a 
-            href="https://doj.gov.in" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            title="Visit Ministry of Justice / Department of Justice website"
-            className="flex items-center gap-3.5 group cursor-pointer hover:opacity-90 transition-opacity"
-          >
-            <img 
-              src="/emblem.svg" 
-              alt="Government of India" 
-              className="h-16 w-auto object-contain drop-shadow-sm group-hover:scale-105 transition-transform" 
-            />
-            <div className="leading-snug">
-              <div className="text-lg font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
-                Ministry of Justice
-              </div>
-              <div className="text-xs text-slate-500 font-medium">Government of India</div>
+    <div className="min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-between bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-100 text-slate-800 p-4 lg:px-12 lg:py-4 overflow-x-hidden overflow-y-auto lg:overflow-y-hidden">
+      
+      {/* Top Header */}
+      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5 shrink-0">
+        <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2.5">
+            <Landmark size={24} className="text-slate-800" />
+            <div>
+              <p className="text-xs font-bold text-slate-900 leading-tight">Ministry of Justice</p>
+              <p className="text-[10px] text-slate-500 font-medium leading-tight">Government of India</p>
             </div>
-          </a>
+          </div>
 
-          <div className="h-10 w-px bg-slate-200" />
+          <div className="h-6 w-px bg-slate-300 hidden sm:block" />
 
-          <div className="leading-snug">
-            <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              Nyay<span className="text-blue-600">Vault</span>
-            </div>
-            <div className="text-xs text-slate-500 font-medium">Evidence Today. A Safer Tomorrow.</div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-extrabold text-blue-900 tracking-tight">Nyay<span className="text-blue-600">Vault</span></h1>
+            <span className="text-[11px] text-slate-500 font-medium hidden md:inline">Evidence Today. A Safer Tomorrow.</span>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main 2-Column Content Area */}
-      <main className="relative z-10 flex-1 max-w-6xl mx-auto w-full px-6 lg:px-8 py-8 lg:py-12 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      {/* Main Grid Content */}
+      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center my-auto py-2">
         
-        {/* Left Column: Hero & Value Proposition */}
-        <div className="flex flex-col justify-center max-w-lg">
-          <div className="text-xs font-bold tracking-[0.25em] text-slate-400 uppercase mb-3">
-            NYAYVAULT
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.12]">
-            Transparent<br />
-            Evidence.<br />
-            <span className="text-blue-600">Stronger Justice.</span>
-          </h1>
-
-          <div className="w-12 h-1 bg-blue-600 rounded-full mt-4 mb-5" />
-
-          <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-md mb-7">
-            A unified, tamper-proof platform for evidence management and a transparent chain of custody.
-          </p>
-
-          {/* 4 Feature Points */}
-          <div className="space-y-4 max-w-md">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-sm border border-blue-100/60">
-                <Shield size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">Tamper-Proof Records</div>
-                <div className="text-xs text-slate-500">Immutable & verifiable</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-sm border border-blue-100/60">
-                <Link2 size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">End-to-End Chain of Custody</div>
-                <div className="text-xs text-slate-500">Track every action</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-sm border border-blue-100/60">
-                <Users size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">Role-Based Access</div>
-                <div className="text-xs text-slate-500">For Police, Prosecution, Defense, Judiciary</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 shadow-sm border border-blue-100/60">
-                <FileText size={18} />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">Audit-Ready Logs</div>
-                <div className="text-xs text-slate-500">Transparent & accountable</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Left Hero Bottom Tagline */}
-          <div className="mt-9 flex items-center gap-3">
-            <div className="w-10 h-[2px] bg-blue-600" />
-            <span className="text-[11px] font-semibold tracking-[0.2em] text-slate-400 uppercase">
-              TECHNOLOGY FOR A MORE JUST INDIA
+        {/* Left Side Text & Features */}
+        <div className="lg:col-span-7 space-y-3.5 pr-0 lg:pr-4">
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+              NYAYVAULT
             </span>
+            <h1 className="text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mt-0.5">
+              Transparent <br />
+              Evidence. <br />
+              <span className="text-blue-600">Stronger Justice.</span>
+            </h1>
+            <p className="text-xs lg:text-sm text-slate-600 font-medium mt-2 max-w-md leading-relaxed">
+              A unified, tamper-proof platform for evidence management and a transparent chain of custody.
+            </p>
+          </div>
+
+          {/* Feature List */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                <ShieldCheck size={14} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900 leading-tight">Tamper-Proof Records</p>
+                <p className="text-[11px] text-slate-500 leading-tight">Immutable & verifiable</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                <Link2 size={14} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900 leading-tight">End-to-End Chain of Custody</p>
+                <p className="text-[11px] text-slate-500 leading-tight">Track every action</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                <Users size={14} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900 leading-tight">Role-Based Access</p>
+                <p className="text-[11px] text-slate-500 leading-tight">For Police, Prosecution, Defense, Judiciary</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                <FileText size={14} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900 leading-tight">Audit-Ready Logs</p>
+                <p className="text-[11px] text-slate-500 leading-tight">Transparent & accountable</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Tagline */}
+          <div className="pt-1">
+            <div className="w-8 h-0.5 bg-blue-600 mb-1" />
+            <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+              TECHNOLOGY FOR A MORE JUST INDIA
+            </p>
           </div>
         </div>
 
-        {/* Right Column: The Login Card */}
-        <div className="flex justify-center lg:justify-end w-full">
+        {/* Right Side Login Card */}
+        <div className="lg:col-span-5">
           <motion.div 
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="w-full max-w-[430px] bg-white rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] border border-slate-100 p-7 sm:p-9 relative"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm mx-auto bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 lg:p-5 shadow-xl shadow-slate-200/60 space-y-3"
           >
-            {/* Scales of Justice Brand Icon */}
-            <div className="flex flex-col items-center mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-[#0e1d3e] text-white flex items-center justify-center shadow-lg shadow-blue-950/20 mb-3.5">
-                <Scale size={28} className="stroke-[1.8]" />
+            {/* Header Badge & Title */}
+            <div className="text-center">
+              <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center mx-auto mb-1 shadow-sm">
+                <Scale size={18} />
               </div>
-
-              <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                Nyay<span className="text-blue-600">Vault</span>
-              </div>
-              <div className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase mt-1">
+              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">NyayVault</h2>
+              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
                 SECURE EVIDENCE PORTAL
+              </p>
+            </div>
+
+            {/* Quick Demo Bar */}
+            <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-2 text-center space-y-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-blue-900">✨ Auto-Fill Demo Credentials:</span>
+                <span className="font-mono font-bold text-blue-700">Pass: sih2026</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                {['POL-1', 'JUD-1', 'ADV-1', 'ADV-2', 'REG-1'].map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => handleQuickFill(role)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                      badgeNumber === role 
+                        ? 'bg-blue-600 text-white border-blue-600' 
+                        : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-100/60'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Error Message */}
-            <AnimatePresence>
-              {error && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700"
-                >
-                  <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* 1-Click Demo Auto-Fill Bar */}
-            <div className="mb-5 p-2.5 rounded-2xl bg-blue-50/70 border border-blue-100">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
-                  <Sparkles size={13} className="text-blue-600" />
-                  Auto-Fill Demo Credentials:
-                </span>
-                <span className="text-[10px] text-blue-600 font-semibold font-mono">Pass: sih2026</span>
+            {error && (
+              <div className="p-2 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2 text-xs">
+                <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={14} />
+                <p className="font-bold text-rose-700 text-[11px]">{error}</p>
               </div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {DEMO_PRESETS.map((p) => {
-                  const isSelected = badgeNumber === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleSelectPreset(p.id)}
-                      className={`py-1.5 px-1 rounded-xl text-xs font-bold transition-all text-center ${
-                        isSelected 
-                          ? 'bg-blue-600 text-white shadow-xs' 
-                          : 'bg-white border border-blue-200/80 text-blue-900 hover:bg-blue-100/70'
-                      }`}
-                      title={`Auto-fill as ${p.label}`}
-                    >
-                      {p.id}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            )}
 
-            {/* Main Login Form */}
-            <form onSubmit={handleLogin} className="space-y-4">
+            {/* Form */}
+            <form onSubmit={handleLogin} className="space-y-2.5 text-xs">
               <div>
-                <label className="block text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2">
+                <label className="block font-bold text-slate-600 text-[10px] uppercase tracking-wider mb-0.5">
                   OFFICER / PERSONNEL BADGE ID
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                  <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
                     type="text"
                     required
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:bg-white focus:border-blue-600 focus:outline-none transition-colors"
+                    placeholder="e.g. POL-1 or JUD-1"
                     value={badgeNumber}
                     onChange={(e) => setBadgeNumber(e.target.value)}
-                    placeholder="e.g. POL-1 or JUD-1"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2">
+                <label className="block font-bold text-slate-600 text-[10px] uppercase tracking-wider mb-0.5">
                   PASSPHRASE
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     required
+                    className="w-full pl-8 pr-8 py-1.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:bg-white focus:border-blue-600 focus:outline-none transition-colors"
+                    placeholder="Enter your passphrase"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your passphrase"
-                    className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
-                    tabIndex={-1}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
               </div>
 
-              {/* Primary Action Button */}
-              <button
+              <button 
                 type="submit"
                 disabled={loading}
-                className="w-full mt-2 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 text-sm transition-all disabled:opacity-60 cursor-pointer"
+                className="w-full py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white rounded-xl font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex justify-center items-center gap-1.5 disabled:opacity-50 mt-1"
               >
                 {loading ? (
-                  <>
-                    <Loader2 size={17} className="animate-spin" />
-                    <span>Verifying Access...</span>
-                  </>
+                  <><Loader2 className="animate-spin" size={14} /> Authenticating...</>
                 ) : (
-                  <>
-                    <span>Access NyayVault</span>
-                    <ArrowRight size={16} />
-                  </>
+                  <>Access NyayVault <ArrowRight size={14} /></>
                 )}
               </button>
             </form>
 
-            {/* OR Divider */}
-            <div className="relative flex py-4 items-center justify-center">
-              <div className="flex-grow border-t border-slate-100"></div>
-              <span className="shrink-0 px-3 text-[11px] font-semibold text-slate-400 tracking-wider uppercase">
-                OR
-              </span>
-              <div className="flex-grow border-t border-slate-100"></div>
-            </div>
+            {/* SSO Option */}
+            <div className="space-y-1.5 pt-0.5">
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-slate-200 w-full" />
+                <span className="bg-white px-2 text-[9px] font-bold text-slate-400 uppercase absolute">OR</span>
+              </div>
 
-            {/* Government SSO Button with 1-Click Demo Presets */}
-            <div className="relative">
-              <button
+              <button 
                 type="button"
-                onClick={() => setShowDemoMenu(!showDemoMenu)}
-                className="w-full py-2.5 px-4 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 flex items-center justify-center gap-3 transition-all cursor-pointer shadow-sm group"
+                onClick={() => alert('ePramaan / MeriPehchaan Government SSO Integration Active for Production.')}
+                className="w-full py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl font-semibold text-slate-700 text-xs transition-colors flex items-center justify-center gap-2"
               >
-                <img 
-                  src="/emblem.svg" 
-                  alt="Emblem of India" 
-                  className="w-5 h-7 object-contain group-hover:scale-105 transition-transform" 
-                />
-                <div className="text-left">
-                  <div className="text-xs font-bold text-slate-800">Login with Government SSO</div>
-                  <div className="text-[10px] text-slate-500 font-medium">(ePramaan / MeriPehchaan)</div>
+                <Landmark size={13} className="text-slate-600" />
+                <div className="text-left leading-none">
+                  <span className="font-bold block text-[10px]">Login with Government SSO</span>
+                  <span className="text-[8px] text-slate-400 font-normal">(ePramaan / MeriPehchaan)</span>
                 </div>
               </button>
-
-              {/* Demo Roles Quick Picker Popover */}
-              <AnimatePresence>
-                {showDemoMenu && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95, y: 5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                    className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-white rounded-2xl shadow-xl border border-slate-200 z-30 space-y-1"
-                  >
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2.5 py-1">
-                      Select Evaluator Persona:
-                    </div>
-                    {DEMO_PRESETS.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleSelectPreset(item.id)}
-                        className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors flex items-center justify-between"
-                      >
-                        <span>{item.label}</span>
-                        <span className="text-[10px] text-slate-400">Pass: sih2026</span>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
 
-            {/* Compliance Badge */}
-            <div className="mt-6 pt-2 flex flex-col items-center justify-center text-center">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                <ShieldCheck size={16} className="text-emerald-500 fill-emerald-50" />
-                <span>BNS & BSA 2023 Compliant</span>
-              </div>
-              <div className="text-[10px] text-slate-400 mt-0.5">
-                Secure | Auditable | Government Certified
-              </div>
+            {/* Footer Compliance Badge */}
+            <div className="pt-1.5 border-t border-slate-100 text-center">
+              <p className="text-[10px] font-bold text-emerald-700 flex items-center justify-center gap-1">
+                <ShieldCheck size={12} className="text-emerald-600" /> BNS & BSA 2023 Compliant
+              </p>
+              <p className="text-[9px] text-slate-400">Secure | Auditable | Government Certified</p>
             </div>
           </motion.div>
         </div>
 
-      </main>
+      </div>
 
-      {/* Subtle bottom spacing */}
-      <div className="h-6" />
+      {/* Footer copyright */}
+      <div className="text-center text-[10px] text-slate-400 font-medium shrink-0 pt-0.5">
+        NyayVault Digital Evidence System © 2026 · Ministry of Justice · Government of India
+      </div>
+
     </div>
   );
 }
