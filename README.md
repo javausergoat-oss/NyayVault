@@ -1,13 +1,15 @@
 # SIH26190: Digital Evidence Vault & Management System 🛡️⚖️
 
+[![Live Portal](https://img.shields.io/badge/Official_Portal-nyayvault.in-2563eb?style=for-the-badge&logo=google-chrome&logoColor=white)](https://nyayvault.in)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-18-blue)
 ![Node.js](https://img.shields.io/badge/Node.js-v20-green)
 ![PostgreSQL](https://img.shields.io/badge/Database-PGlite%20%7C%20PostgreSQL-336791)
 
-> **Built for the Smart India Hackathon (Problem Statement SIH26190)**
+> **Built for the Smart India Hackathon (Problem Statement SIH26190)**  
+> 🌐 **Live Production Portal:** [https://nyayvault.in](https://nyayvault.in) (or [https://www.nyayvault.in](https://www.nyayvault.in))
 
-The **Digital Evidence Vault** is a secure, military-grade document management system designed to completely digitize the Indian judicial and law enforcement workflow. It replaces vulnerable physical evidence lockers with an immutable, cryptographically secured, AI-powered digital vault.
+The **Digital Evidence Vault (NyayVault)** is a secure, military-grade document management system designed to completely digitize the Indian judicial and law enforcement workflow. It replaces vulnerable physical evidence lockers with an immutable, cryptographically secured, AI-powered digital vault.
 
 ---
 
