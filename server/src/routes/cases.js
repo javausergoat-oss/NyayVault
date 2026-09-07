@@ -1,5 +1,5 @@
 import express from 'express';
-import { createCase, listCases, getCaseById, updateCaseStatus } from '../services/caseService.js';
+import { createCase, listCases, getCaseById, updateCaseStatus, assignCaseActors, getCaseAssignments } from '../services/caseService.js';
 import { uploadDocument, getDocumentsByCase, getDocumentsWithText } from '../services/documentService.js';
 import { getCaseAuditLogs } from '../services/auditService.js';
 import { semanticSearch } from '../services/searchService.js';
@@ -31,9 +31,9 @@ router.get('/', async (req, res, next) => {
 
 /**
  * POST /api/cases
- * Creates a new case.
+ * Creates a new case docket. Strictly restricted to Police IO and Court Registrar.
  */
-router.post('/', async (req, res, next) => {
+router.post('/', requireRole(['INVESTIGATING_OFFICER', 'REGISTRAR', 'COURT_REGISTRAR', 'ADMIN']), async (req, res, next) => {
   try {
     const { caseNumber, title, description, securityLevel } = req.body;
     const ipAddress = req.ip || req.connection.remoteAddress;
@@ -281,6 +281,53 @@ router.patch('/:caseId/status', async (req, res, next) => {
 
     const updatedCase = await updateCaseStatus(req.params.caseId, status, req.user, ipAddress);
     res.json({ success: true, case: updatedCase });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/cases/:caseId/assignments
+ * Returns all assigned personnel for a case.
+ */
+router.get('/:caseId/assignments', async (req, res, next) => {
+  try {
+    const assignments = await getCaseAssignments(req.params.caseId);
+    res.json({
+      success: true,
+      count: assignments.length,
+      assignments,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/cases/:caseId/assignments
+ * Allocates Judicial Officer, Public Prosecutor, and Defense Counsel (Court Registrar authority).
+ */
+router.post('/:caseId/assignments', async (req, res, next) => {
+  try {
+    const { judgeId, prosecutorId, defenseId, hearingDate, notes } = req.body;
+    const ipAddress = req.ip || req.connection.remoteAddress;
+
+    const updatedCase = await assignCaseActors({
+      caseId: req.params.caseId,
+      judgeId,
+      prosecutorId,
+      defenseId,
+      hearingDate,
+      notes,
+      allocatedBy: req.user?.id,
+      ipAddress,
+    });
+
+    res.json({
+      success: true,
+      message: 'Case bench and legal counsels successfully allocated.',
+      case: updatedCase,
+    });
   } catch (err) {
     next(err);
   }

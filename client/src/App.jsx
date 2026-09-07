@@ -1,27 +1,65 @@
 import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-import Dashboard from './components/Dashboard';
+import TopHeader from './components/TopHeader';
 import CaseList from './components/CaseList';
 import CaseDetail from './components/CaseDetail';
+import Login from './components/Login';
+import Dashboard from './components/Dashboard';
+
 import CrossCaseRadar from './components/CrossCaseRadar';
 import SmartSearch from './components/SmartSearch';
-import DocumentTable from './components/DocumentTable';
-import AuditTrailView from './components/AuditTrailView';
-import CaseTimeline from './components/CaseTimeline';
-import CaseSummary from './components/CaseSummary';
-import Login from './components/Login';
+import MasterTimelineHub from './components/MasterTimelineHub';
+import AuditTrailHub from './components/AuditTrailHub';
+import ReportsHub from './components/ReportsHub';
+import UsersDirectory from './components/UsersDirectory';
+import SettingsHub from './components/SettingsHub';
+import EvidenceHub from './components/EvidenceHub';
+import { canAccessGlobalEvidence } from './components/Sidebar';
+import { Lock, FolderKanban } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { LanguageProvider } from './hooks/useTranslation';
-import { Users, Settings as SettingsIcon, ShieldCheck, Database, FileText } from 'lucide-react';
-import { getCases, getCaseAuditTrail } from './services/api';
+import { NotificationProvider } from './hooks/useNotifications';
+import { ToastProvider } from './context/ToastContext';
+import ErrorBoundary from './components/ui/ErrorBoundary';
+
+function EvidenceRestrictedBoundary({ onGoToCases }) {
+  return (
+    <div className="max-w-2xl mx-auto my-12 p-8 sm:p-10 bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/40 rounded-3xl shadow-xl text-center space-y-6">
+      <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-amber-600 dark:text-amber-400 mx-auto shadow-sm">
+        <Lock size={30} className="stroke-[2.2]" />
+      </div>
+      <div className="space-y-3">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+          Judicial Evidentiary Boundary • Section 65B BSA
+        </span>
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+          Global Evidence Vault Restricted
+        </h2>
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg mx-auto">
+          Under statutory confidentiality and court procedural justice rules, Police Investigators, Defense Counsels, Public Prosecutors, and Judicial Officers cannot access the global evidence repository across unassigned cases.
+        </p>
+        <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold">
+          You may only inspect, verify, and upload exhibits inside your officially assigned case dockets.
+        </p>
+      </div>
+      <div className="pt-2 flex justify-center">
+        <button
+          onClick={onGoToCases}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs sm:text-sm transition-all shadow-md shadow-blue-600/20 cursor-pointer"
+        >
+          <FolderKanban size={16} />
+          <span>Access My Assigned Cases</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function AppContent() {
   const [activeCaseId, setActiveCaseId] = useState(null);
-  const [activeView, setActiveView] = useState('dashboard');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [allCases, setAllCases] = useState([]);
-  const [allAuditLogs, setAllAuditLogs] = useState([]);
+  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard', 'cases' or 'radar'
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -45,7 +83,7 @@ function AppContent() {
     localStorage.setItem('sih_theme', theme);
   }, [theme]);
 
-  // Load user profile and global data if authenticated
+  // Load user profile if authenticated
   useEffect(() => {
     const token = localStorage.getItem('sih_token');
     if (!token) {
@@ -63,9 +101,6 @@ function AppContent() {
       .then(data => {
         setCurrentUser(data.user);
         setIsAuthenticated(true);
-        // Pre-fetch global cases
-        getCases().then(res => setAllCases(res.cases || [])).catch(() => {});
-        getCaseAuditTrail('case-56fd49f6').then(res => setAllAuditLogs(res.auditLogs || [])).catch(() => {});
       })
       .catch(() => {
         localStorage.removeItem('sih_token');
@@ -83,7 +118,7 @@ function AppContent() {
   const handleLoginSuccess = (user, token) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
-    window.history.replaceState({ view: 'dashboard' }, '', '/');
+    window.history.replaceState({ view: 'cases' }, '', '/');
   };
 
   const handleLogout = () => {
@@ -94,30 +129,32 @@ function AppContent() {
     setActiveCaseId(null);
   };
 
-  // Handle History API for browser navigation
+  // Handle History API for browser back button
   useEffect(() => {
     const handlePopState = (event) => {
       if (event.state?.view === 'case' && event.state?.caseId) {
         setActiveCaseId(event.state.caseId);
         setActiveView('cases');
       } else if (event.state?.view) {
-        setActiveView(event.state.view);
         setActiveCaseId(null);
+        setActiveView(event.state.view);
       } else {
         setActiveCaseId(null);
         setActiveView('dashboard');
       }
     };
-
-    if (window.location.hash.startsWith('#case/')) {
-      const id = window.location.hash.split('/')[1];
+    
+    // Initial state setup if url has hash
+    const hash = window.location.hash;
+    if (hash.startsWith('#case/')) {
+      const id = hash.split('/')[1];
       setActiveCaseId(id);
       setActiveView('cases');
-      window.history.replaceState({ view: 'case', caseId: id }, '', window.location.hash);
-    } else if (window.location.hash) {
-      const view = window.location.hash.replace('#', '');
-      setActiveView(view);
-      window.history.replaceState({ view }, '', window.location.hash);
+      window.history.replaceState({ view: 'case', caseId: id }, '', hash);
+    } else if (hash && hash.length > 1) {
+      const viewFromHash = hash.substring(1);
+      setActiveView(viewFromHash);
+      window.history.replaceState({ view: viewFromHash }, '', hash);
     } else {
       setActiveView('dashboard');
       window.history.replaceState({ view: 'dashboard' }, '', '/');
@@ -127,13 +164,19 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Global Keyboard Shortcut: Cmd + K / Ctrl + K opens Search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        handleViewChange('search');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleCaseSelect = (id) => {
-    if (!id) {
-      setActiveCaseId(null);
-      setActiveView('cases');
-      window.history.pushState({ view: 'cases' }, '', '#cases');
-      return;
-    }
     setActiveCaseId(id);
     setActiveView('cases');
     window.history.pushState({ view: 'case', caseId: id }, '', `#case/${id}`);
@@ -147,8 +190,8 @@ function AppContent() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -157,205 +200,75 @@ function AppContent() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
-  const renderMainView = () => {
-    if (activeCaseId) {
-      return (
-        <CaseDetail 
-          caseId={activeCaseId} 
-          onBack={() => {
-            setActiveCaseId(null);
-            setActiveView('cases');
-            window.history.pushState({ view: 'cases' }, '', '#cases');
-          }} 
-          currentUser={currentUser}
-        />
-      );
-    }
-
-    switch (activeView) {
-      case 'dashboard':
-        return (
-          <Dashboard 
-            currentUser={currentUser} 
-            onSelectCase={handleCaseSelect} 
-            onViewChange={handleViewChange}
-          />
-        );
-      case 'cases':
-        return <CaseList onCaseSelect={handleCaseSelect} currentUser={currentUser} />;
-      case 'evidence':
-        return (
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Global Evidence Directory</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Repository of digital evidence documents across all active investigations.</p>
-              </div>
-            </div>
-            <DocumentTable documents={[]} onRefresh={() => {}} />
-          </div>
-        );
-      case 'search':
-        return (
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Global Semantic Search</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Search contextual facts, dates, and evidence snippets across all indexed case files.</p>
-              </div>
-            </div>
-            <SmartSearch caseId={allCases[0]?.id || 'case-56fd49f6'} initialQuery={searchQuery} />
-          </div>
-        );
-      case 'analysis':
-        return <CrossCaseRadar />;
-      case 'timeline':
-        return (
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Global Chronological Timeline</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Chronological progression of evidence uploads and legal milestones.</p>
-            </div>
-            <CaseTimeline documents={[]} />
-          </div>
-        );
-      case 'audit':
-        return (
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Global Audit Trail</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Immutable chain of custody log detailing officer access, verifications, and uploads.</p>
-            </div>
-            <AuditTrailView logs={allAuditLogs} caseNumber="GLOBAL-AUDIT" />
-          </div>
-        );
-      case 'reports':
-        return (
-          <div className="max-w-5xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Executive Case Briefs</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Synthesized investigation summaries for judicial review.</p>
-            </div>
-            {allCases[0] ? (
-              <CaseSummary caseId={allCases[0].id} caseDetails={allCases[0]} />
-            ) : (
-              <div className="p-8 text-center text-slate-400">Select a specific case to generate executive briefs.</div>
-            )}
-          </div>
-        );
-      case 'users':
-        return (
-          <div className="max-w-5xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-xl">
-                <Users size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Team Members & Access Control</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Authorized personnel for the Nyay Vault workspace.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              {[
-                { name: 'Insp. Krishna Chhabra', role: 'Investigating Officer', badge: 'POL-1', status: 'Active' },
-                { name: 'Insp. Rajesh Sharma', role: 'Investigating Officer', badge: 'POL-78219', status: 'Active' },
-                { name: 'Hon. Justice Vatsal Singh', role: 'Judicial Officer', badge: 'JUD-1', status: 'Active' },
-                { name: 'Adv. Priya Kapoor', role: 'Prosecutor', badge: 'ADV-2', status: 'Active' },
-                { name: 'Adv. Vikram Singh', role: 'Defense Counsel', badge: 'ADV-1', status: 'Active' },
-                { name: 'Registrar Amit Kumar', role: 'Registrar', badge: 'REG-1', status: 'Active' },
-              ].map((user, idx) => (
-                <div key={idx} className="p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-800/40 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-[10px]">
-                      {user.name.split(' ').slice(-2).map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 dark:text-white">{user.name}</p>
-                      <p className="text-[11px] text-slate-500">{user.role} ({user.badge})</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                    {user.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div className="max-w-5xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-6 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 rounded-xl">
-                <SettingsIcon size={20} />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Vault System Settings & Compliance</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Cryptographic parameters, SHA-256 integrity rules, and BSA Sec 63 engine status.</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 border border-slate-100 dark:border-slate-800 rounded-xl space-y-2 bg-slate-50/50 dark:bg-slate-800/40">
-                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-                  <ShieldCheck size={16} className="text-emerald-600" /> Cryptographic Integrity Engine
-                </div>
-                <p className="text-[11px] text-slate-500">SHA-256 hash hashing enforced on all uploaded evidence files under BSA Section 63 compliance.</p>
-                <span className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30">
-                  Enforced (SHA-256)
-                </span>
-              </div>
-
-              <div className="p-4 border border-slate-100 dark:border-slate-800 rounded-xl space-y-2 bg-slate-50/50 dark:bg-slate-800/40">
-                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-                  <Database size={16} className="text-emerald-600" /> Vector Database Indexing
-                </div>
-                <p className="text-[11px] text-slate-500">PGlite vector semantic search index active for multi-document cross-case analysis.</p>
-                <span className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30">
-                  pgvector Active
-                </span>
-              </div>
-            </div>
-          </div>
-        );
-      default:
-        return (
-          <Dashboard 
-            currentUser={currentUser} 
-            onSelectCase={handleCaseSelect} 
-            onViewChange={handleViewChange}
-          />
-        );
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#080c14] text-slate-900 dark:text-slate-100 transition-colors duration-200 flex flex-col antialiased">
-      {/* Top Navbar Header */}
-      <Navbar 
-        theme={theme} 
-        toggleTheme={toggleTheme} 
-        onCaseSelect={handleCaseSelect} 
-        onLogout={handleLogout} 
+    <div className="h-screen w-screen overflow-hidden bg-[#f8fafd] dark:bg-slate-950 text-slate-800 dark:text-white flex transition-colors duration-300 font-sans selection:bg-blue-600 selection:text-white relative">
+      {/* Soft abstract ambient curves matching Login screen */}
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-blue-100/50 via-indigo-50/30 to-transparent dark:from-blue-950/20 dark:via-transparent rounded-full blur-3xl pointer-events-none -mr-40 -mt-40 z-0" />
+      <div className="fixed bottom-0 left-64 w-[500px] h-[500px] bg-gradient-to-tr from-blue-100/60 via-sky-50/30 to-transparent dark:from-blue-950/20 dark:via-transparent rounded-full blur-3xl pointer-events-none -ml-20 -mb-40 z-0" />
+
+      {/* Sidebar Navigation matching user mockup */}
+      <Sidebar 
+        activeView={activeCaseId ? 'cases' : activeView} 
+        onViewChange={handleViewChange} 
         currentUser={currentUser} 
-        activeView={activeView}
-        onViewChange={handleViewChange}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        mobileOpen={mobileNavOpen}
+        onCloseMobile={() => setMobileNavOpen(false)}
       />
-      
-      {/* Main Workspace Layout with Left Sidebar */}
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar 
-          activeView={activeView} 
-          onViewChange={handleViewChange} 
+
+      {/* Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10">
+        <TopHeader 
           currentUser={currentUser} 
+          theme={theme} 
+          toggleTheme={toggleTheme} 
+          onLogout={handleLogout} 
+          onSearchClick={() => handleViewChange('search')}
+          onToggleMobileNav={() => setMobileNavOpen(prev => !prev)}
+          onSelectCase={handleCaseSelect}
+          onViewChange={handleViewChange}
+          onSwitchUser={handleLoginSuccess}
         />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-          {renderMainView()}
+
+        <main className="flex-1 p-5 sm:p-7 lg:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
+          {activeCaseId ? (
+            <CaseDetail 
+              caseId={activeCaseId} 
+              onBack={() => {
+                setActiveCaseId(null);
+                setActiveView('cases');
+                window.history.pushState({ view: 'cases' }, '', '#cases');
+              }} 
+              currentUser={currentUser}
+            />
+          ) : activeView === 'dashboard' ? (
+            <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} onViewChange={handleViewChange} />
+          ) : activeView === 'evidence' ? (
+            canAccessGlobalEvidence(currentUser?.role) ? (
+              <EvidenceHub onSelectCase={handleCaseSelect} />
+            ) : (
+              <EvidenceRestrictedBoundary onGoToCases={() => handleViewChange('cases')} />
+            )
+          ) : activeView === 'search' ? (
+            <SmartSearch onOpenCase={handleCaseSelect} />
+          ) : activeView === 'cases' ? (
+            <CaseList onCaseSelect={handleCaseSelect} currentUser={currentUser} />
+          ) : activeView === 'radar' ? (
+            <CrossCaseRadar onOpenCase={handleCaseSelect} />
+          ) : activeView === 'timeline' ? (
+            <MasterTimelineHub onCaseSelect={handleCaseSelect} />
+          ) : activeView === 'audit' ? (
+            <AuditTrailHub />
+          ) : activeView === 'reports' ? (
+            <ReportsHub currentUser={currentUser} />
+          ) : activeView === 'users' ? (
+            <UsersDirectory />
+          ) : activeView === 'settings' ? (
+            <SettingsHub currentUser={currentUser} theme={theme} toggleTheme={toggleTheme} />
+          ) : (
+            <Dashboard currentUser={currentUser} onSelectCase={handleCaseSelect} onViewChange={handleViewChange} />
+          )}
         </main>
       </div>
-
       <Analytics />
     </div>
   );
@@ -363,8 +276,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <AppContent />
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <NotificationProvider>
+          <ToastProvider>
+            <AppContent />
+          </ToastProvider>
+        </NotificationProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 }

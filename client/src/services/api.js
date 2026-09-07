@@ -56,8 +56,16 @@ export async function getCaseDocuments(caseId) {
   return fetchApi(`/cases/${caseId}/documents`);
 }
 
+export async function getAllDocuments() {
+  return fetchApi('/documents');
+}
+
 export async function getCaseAuditTrail(caseId) {
   return fetchApi(`/cases/${caseId}/audit-trail`);
+}
+
+export async function getGlobalAuditLogs(limit = 100) {
+  return fetchApi(`/audit?limit=${limit}`);
 }
 
 export async function uploadDocument(caseId, file) {
@@ -123,4 +131,33 @@ export async function updateCaseStatus(caseId, status) {
     method: 'PATCH',
     body: { status }
   });
+}
+
+export async function fetchDocumentBlob(documentId) {
+  const res = await fetch(`${BASE_URL}/documents/${documentId}/download`, {
+    headers: getAuthHeader()
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `Failed to download file (HTTP ${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';
+  const sha256 = res.headers.get('x-evidence-sha256') || null;
+  const objectUrl = URL.createObjectURL(blob);
+
+  return { blob, objectUrl, contentType, sha256 };
+}
+
+export async function assignCase(caseId, allocationData) {
+  return fetchApi(`/cases/${caseId}/assignments`, {
+    method: 'POST',
+    body: allocationData,
+  });
+}
+
+export async function getCaseAssignments(caseId) {
+  return fetchApi(`/cases/${caseId}/assignments`);
 }

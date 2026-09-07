@@ -1,770 +1,860 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Folder, 
   FileText, 
   Clock, 
   Users, 
   ChevronRight, 
+  Plus, 
   MoreVertical, 
   Upload, 
   Sparkles, 
+  FileSpreadsheet, 
   Share2, 
-  ArrowUpRight,
-  Database,
-  Cpu,
-  ShieldCheck,
-  FileSpreadsheet,
-  FileVideo,
-  FileImage,
-  Plus,
-  X
+  CheckCircle2, 
+  Database, 
+  Settings2, 
+  ShieldCheck, 
+  FileVideo, 
+  FileSpreadsheet as FileCsv, 
+  Image as ImageIcon,
+  ArrowRight,
+  ExternalLink,
+  X,
+  Shield,
+  Scale
 } from 'lucide-react';
-import { getCases, createCase } from '../services/api';
+import { getCases, createCase, getAllDocuments, getGlobalAuditLogs } from '../services/api';
+import { StatCardsSkeleton, TableRowsSkeleton } from './ui/Skeleton';
+import { useTranslation } from '../hooks/useTranslation';
+import { canAccessGlobalEvidence } from './Sidebar';
+import { canCreateCase } from './CaseList';
+import NumberTicker from './ui/NumberTicker';
+import BorderBeam from './ui/BorderBeam';
+import JudicialPipelineBadge from './JudicialPipelineBadge';
+import ShimmerButton from './ui/ShimmerButton';
+import { useToast } from '../context/ToastContext';
 
 export default function Dashboard({ currentUser, onSelectCase, onViewChange }) {
+  const { t, language } = useTranslation();
+  const toast = useToast();
   const [cases, setCases] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCaseOverview, setSelectedCaseOverview] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-
-  // New Case Form State
-  const [newCase, setNewCase] = useState({
+  
+  // New Case Form
+  const [newCaseData, setNewCaseData] = useState({
     caseNumber: '',
     title: '',
     description: '',
-    priority: 'HIGH',
     securityLevel: 'RESTRICTED'
   });
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const res = await getCases();
-        setCases(res.cases || []);
-      } catch (err) {
-        console.error("Failed to fetch cases for dashboard", err);
+  const loadDashboard = async () => {
+    try {
+      const [casesRes, docsRes, auditRes] = await Promise.all([
+        getCases().catch(() => ({ cases: [] })),
+        getAllDocuments().catch(() => ({ documents: [] })),
+        getGlobalAuditLogs(6).catch(() => ({ auditLogs: [] }))
+      ]);
+      const loadedCases = casesRes.cases || [];
+      setCases(loadedCases);
+      if (loadedCases.length > 0) {
+        setSelectedCaseOverview(loadedCases[0]);
+      } else {
+        setSelectedCaseOverview(null);
       }
-    };
-    fetchDashboardData();
+      setDocuments(docsRes.documents || []);
+      setAuditLogs(auditRes.auditLogs || []);
+    } catch (err) {
+      console.error("Failed to load dashboard data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
-  const handleCreateSubmit = async (e) => {
+  const handleCreateCaseSubmit = async (e) => {
     e.preventDefault();
     try {
-      await createCase(newCase);
+      await createCase(newCaseData);
+      toast.success(`Case docket ${newCaseData.caseNumber} registered in ledger`, 'Case File Created');
       setShowCreateModal(false);
-      setNewCase({ caseNumber: '', title: '', description: '', priority: 'HIGH', securityLevel: 'RESTRICTED' });
-      const res = await getCases();
-      setCases(res.cases || []);
+      setNewCaseData({ caseNumber: '', title: '', description: '', securityLevel: 'RESTRICTED' });
+      await loadDashboard();
     } catch (err) {
-      alert('Failed to create case: ' + err.message);
+      toast.error(err.message || 'Failed to create case', 'Action Failed');
     }
   };
 
-  const defaultInvestigations = [
-    { id: 'CR-2026-0045', caseNumber: 'CR-2026-0045', title: 'Theft Investigation', priority: 'High', status: 'Active', updatedAt: '4 Sep 2025' },
-    { id: 'CR-2026-0042', caseNumber: 'CR-2026-0042', title: 'Cyber Fraud Case', priority: 'Medium', status: 'Review', updatedAt: '3 Sep 2025' },
-    { id: 'CR-2026-0038', caseNumber: 'CR-2026-0038', title: 'Financial Investigation', priority: 'High', status: 'Active', updatedAt: '2 Sep 2025' },
-    { id: 'CR-2026-0031', caseNumber: 'CR-2026-0031', title: 'Identity Forgery', priority: 'Medium', status: 'Closed', updatedAt: '1 Sep 2025' },
-    { id: 'CR-2026-0027', caseNumber: 'CR-2026-0027', title: 'Narcotics Trade', priority: 'Medium', status: 'Active', updatedAt: '30 Aug 2025' },
-  ];
+  const displayCases = cases;
+  const recentEvidences = documents.slice(0, 5);
+  const activeCaseItem = selectedCaseOverview || (cases.length > 0 ? cases[0] : null);
 
-  const investigationsList = cases.length > 0 ? cases.slice(0, 5).map((c) => ({
-    id: c.id,
-    caseNumber: c.case_number || `CR-2026-00${c.id}`,
-    title: c.title,
-    priority: c.security_level === 'TOP_SECRET' ? 'High' : 'Medium',
-    status: c.status === 'CLOSED' ? 'Closed' : c.status === 'UNDER_REVIEW' ? 'Review' : 'Active',
-    updatedAt: new Date(c.updated_at || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-  })) : defaultInvestigations;
+  const roleName = currentUser?.role === 'INVESTIGATING_OFFICER' 
+    ? 'Investigator' 
+    : currentUser?.role === 'JUDICIAL_OFFICER' 
+    ? 'Magistrate' 
+    : currentUser?.role === 'REGISTRAR'
+    ? 'Court Registrar'
+    : currentUser?.role === 'LAWYER_PROSECUTION'
+    ? 'Public Prosecutor'
+    : currentUser?.role === 'LAWYER_DEFENSE'
+    ? 'Defense Counsel'
+    : 'Officer';
 
-  const evidenceList = [
-    { name: 'FIR_0045.pdf', type: 'FIR', caseId: 'CR-2026-0045', status: 'Verified', uploadedAt: '4 Sep 2025, 09:12', iconType: 'pdf' },
-    { name: 'Forensic_Report.pdf', type: 'Forensic Report', caseId: 'CR-2026-0042', status: 'Verified', uploadedAt: '4 Sep 2025, 08:45', iconType: 'pdf' },
-    { name: 'CCTV_12.mp4', type: 'Video', caseId: 'CR-2026-0045', status: 'Processing', uploadedAt: '4 Sep 2025, 08:20', iconType: 'video' },
-    { name: 'Call_Records.csv', type: 'Call Records', caseId: 'CR-2026-0038', status: 'Verified', uploadedAt: '3 Sep 2025, 17:10', iconType: 'csv' },
-    { name: 'Image_001.jpg', type: 'Image', caseId: 'CR-2026-0042', status: 'Verified', uploadedAt: '3 Sep 2025, 16:35', iconType: 'image' },
-  ];
+  const isRegistrar = currentUser?.role === 'REGISTRAR';
+  const unallocatedCases = cases.filter(c => !c.assignments || c.assignments.length === 0);
 
-  const activityStream = [
-    {
-      id: 1,
-      dotColor: 'bg-emerald-500',
-      icon: Upload,
-      title: 'Evidence verified',
-      subtitle: 'FIR_0045.pdf (SHA-256 matched)',
-      time: '4 Sep, 09:12'
-    },
-    {
-      id: 2,
-      dotColor: 'bg-rose-500',
-      icon: FileText,
-      title: 'Document uploaded',
-      subtitle: 'CCTV_12.mp4',
-      time: '4 Sep, 08:20'
-    },
-    {
-      id: 3,
-      dotColor: 'bg-purple-500',
-      icon: FileText,
-      title: 'Report accessed',
-      subtitle: 'Forensic_Report.pdf by POL-104',
-      time: '3 Sep, 18:45'
-    },
-    {
-      id: 4,
-      dotColor: 'bg-blue-500',
-      icon: Users,
-      title: 'Chain of custody updated',
-      subtitle: 'CCTV_12.mp4',
-      time: '3 Sep, 17:30'
-    },
-    {
-      id: 5,
-      dotColor: 'bg-amber-500',
-      icon: Sparkles,
-      title: 'Case updated',
-      subtitle: 'CR-2026-0045',
-      time: '3 Sep, 16:10'
+  const getDocIconInfo = (mimeType, filename) => {
+    const fn = (filename || '').toLowerCase();
+    const mt = (mimeType || '').toLowerCase();
+    if (mt.includes('video') || fn.endsWith('.mp4') || fn.endsWith('.mkv') || fn.endsWith('.mov')) {
+      return { icon: FileVideo, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40' };
     }
-  ];
-
-  const renderFileIcon = (type) => {
-    switch (type) {
-      case 'pdf':
-        return (
-          <div className="w-7 h-7 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-600 flex items-center justify-center font-bold text-[10px]">
-            PDF
-          </div>
-        );
-      case 'video':
-        return (
-          <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center">
-            <FileVideo size={16} />
-          </div>
-        );
-      case 'csv':
-        return (
-          <div className="w-7 h-7 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
-            <FileSpreadsheet size={16} />
-          </div>
-        );
-      default:
-        return (
-          <div className="w-7 h-7 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 flex items-center justify-center">
-            <FileImage size={16} />
-          </div>
-        );
+    if (mt.includes('image') || fn.endsWith('.jpg') || fn.endsWith('.jpeg') || fn.endsWith('.png') || fn.endsWith('.webp')) {
+      return { icon: ImageIcon, color: 'text-cyan-500 bg-cyan-50 dark:bg-cyan-950/40' };
     }
+    if (mt.includes('csv') || fn.endsWith('.csv') || fn.endsWith('.xlsx')) {
+      return { icon: FileCsv, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40' };
+    }
+    return { icon: FileText, color: 'text-rose-500 bg-rose-50 dark:bg-rose-950/40' };
   };
-
-  const activeCasesCount = cases.length > 0 ? cases.filter(c => c.status !== 'CLOSED').length : 12;
-  const totalEvidenceCount = cases.length > 0 ? cases.reduce((acc, c) => acc + (parseInt(c.document_count) || 0), 0) : 1248;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
-      {/* Top Workspace Header */}
+    <div className="space-y-6 pb-8">
+      {/* Top Greeting & Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
-            <span>👋</span> Good Morning, {currentUser?.full_name?.split(' ')[0] || 'Investigator'}
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40">
+              <Shield size={11} className="text-blue-600 dark:text-blue-400" />
+              {t('Ministry of Justice • Secure Evidence Portal')}
+            </span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            <span>👋</span>
+            <span>{t('Welcome back,')} {currentUser?.full_name ? currentUser.full_name.split(' ')[0] : t(roleName)}</span>
           </h1>
-          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
-            Your investigation workspace
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+            {t('Here is your live evidence custody summary and active proceedings overview.')}
           </p>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="text-right hidden md:block">
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-              Thu, 4 Sep 2025
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              10:24 AM
-            </p>
+            <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              {new Date().toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
+            <div className="text-[11px] text-slate-400 font-mono">
+              {new Date().toLocaleTimeString(language === 'hi' ? 'hi-IN' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}
+            </div>
           </div>
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-colors"
+
+          {canCreateCase(currentUser?.role) && (
+            <ShimmerButton
+              onClick={() => setShowCreateModal(true)}
+              className="text-xs font-bold"
+            >
+              <Plus size={16} />
+              <span>{t('Create Case')}</span>
+            </ShimmerButton>
+          )}
+        </div>
+      </div>
+
+      {/* Court Registrar Urgent Allocation Alert Banner */}
+      {isRegistrar && unallocatedCases.length > 0 && (
+        <div className="relative overflow-hidden p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/40 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <BorderBeam size={320} duration={8} colorFrom="#f59e0b" colorTo="#ef4444" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-xs">
+              <Scale size={20} />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                {unallocatedCases.length} {t('New Police Filing(s) Awaiting Judicial Allocation')}
+              </h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {t('Assign presiding magistrates and state/defense counsels to unlock case access in judicial vaults.')}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onViewChange && onViewChange('cases')}
+            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold text-xs shadow-xs transition-colors shrink-0 cursor-pointer"
           >
-            <Plus size={16} />
-            <span>Create Case</span>
+            {t('Open Allocation Desk')}
           </button>
         </div>
-      </div>
+      )}
 
-      {/* Top 4 Summary Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Active Cases */}
-        <div 
-          onClick={() => onViewChange && onViewChange('cases')}
-          className="bg-[#f4faf6] dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-emerald-300 transition-all shadow-2xs"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
-              <Folder size={20} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">
-                {activeCasesCount}
-              </h2>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
-                Active Cases
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-slate-400 dark:text-slate-600" />
-        </div>
-
-        {/* Card 2: Total Evidence */}
-        <div 
-          onClick={() => onViewChange && onViewChange('evidence')}
-          className="bg-[#f4f8fc] dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-blue-300 transition-all shadow-2xs"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
-              <FileText size={20} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">
-                {totalEvidenceCount.toLocaleString()}
-              </h2>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
-                Total Evidence
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-slate-400 dark:text-slate-600" />
-        </div>
-
-        {/* Card 3: Needs Review */}
-        <div 
-          onClick={() => onViewChange && onViewChange('audit')}
-          className="bg-[#fdf4f4] dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-rose-300 transition-all shadow-2xs"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0">
-              <Clock size={20} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">
-                26
-              </h2>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
-                Needs Review
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-slate-400 dark:text-slate-600" />
-        </div>
-
-        {/* Card 4: Team Members */}
-        <div 
-          onClick={() => onViewChange && onViewChange('users')}
-          className="bg-[#f8f5fc] dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-purple-300 transition-all shadow-2xs"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
-              <Users size={20} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-white leading-none">
-                8
-              </h2>
-              <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mt-1">
-                Team Members
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="text-slate-400 dark:text-slate-600" />
-        </div>
-      </div>
-
-      {/* Main 2-Column Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (Span 2) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Active Investigations Table */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Active Investigations
-              </h2>
-              <button 
-                onClick={() => onViewChange && onViewChange('cases')}
-                className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
-              >
-                View All <ArrowUpRight size={14} />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Case ID</th>
-                    <th className="py-2.5 px-3">Title</th>
-                    <th className="py-2.5 px-3">Priority</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3">Last Updated</th>
-                    <th className="py-2.5 px-3 text-right"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {investigationsList.map((item) => (
-                    <tr 
-                      key={item.id} 
-                      onClick={() => onSelectCase && onSelectCase(item.id)}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
-                    >
-                      <td className="py-3 px-3 text-slate-900 dark:text-white font-bold">
-                        {item.caseNumber}
-                      </td>
-                      <td className="py-3 px-3 text-slate-800 dark:text-slate-200 font-bold">
-                        {item.title}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.priority === 'High' 
-                            ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30' 
-                            : 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30'
-                        }`}>
-                          {item.priority}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.status === 'Active'
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30'
-                            : item.status === 'Review'
-                            ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-900/30'
-                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-500">
-                        {item.updatedAt}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <button className="p-1 text-slate-400 hover:text-slate-600">
-                          <MoreVertical size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Recent Evidence Table */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Recent Evidence
-              </h2>
-              <button 
-                onClick={() => onViewChange && onViewChange('evidence')}
-                className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
-              >
-                View All <ArrowUpRight size={14} />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Name</th>
-                    <th className="py-2.5 px-3">Type</th>
-                    <th className="py-2.5 px-3">Case ID</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3">Uploaded At</th>
-                    <th className="py-2.5 px-3 text-right"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {evidenceList.map((item, idx) => (
-                    <tr 
-                      key={idx}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
-                    >
-                      <td className="py-3 px-3 text-slate-900 dark:text-white font-bold flex items-center gap-3">
-                        {renderFileIcon(item.iconType)}
-                        <span>{item.name}</span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-600 dark:text-slate-400">
-                        {item.type}
-                      </td>
-                      <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-200">
-                        {item.caseId}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.status === 'Verified'
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30'
-                            : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-500">
-                        {item.uploadedAt}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <button className="p-1 text-slate-400 hover:text-slate-600">
-                          <MoreVertical size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column (Span 1) */}
-        <div className="space-y-6">
-          {/* Case Overview Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Case Overview
-              </h2>
-              <button 
-                onClick={() => onSelectCase && onSelectCase('CR-2026-0045')}
-                className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
-              >
-                View Details <ArrowUpRight size={14} />
-              </button>
-            </div>
-
-            {/* Case Highlight Container */}
-            <div className="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <Folder size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white leading-tight">
-                      CR-2026-0045
-                    </h3>
-                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200 mt-0.5">
-                      Theft Investigation
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/30">
-                  Active
-                </span>
+      {/* 4 Stat Metric Cards */}
+      {loading ? (
+        <StatCardsSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Active Cases (Blue) */}
+          <div 
+            onClick={() => onViewChange && onViewChange('cases')}
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-slate-800 shadow-xs flex items-center justify-between cursor-pointer hover:border-blue-300 transition-all group"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900/50">
+                <Folder size={20} />
               </div>
-
-              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Electronics theft case with CCTV evidence and witness statements.
-              </p>
-
-              {/* Sub-stat Grid */}
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 text-center">
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                  <div className="flex justify-center text-blue-600 dark:text-blue-400 mb-1">
-                    <FileText size={15} />
-                  </div>
-                  <span className="text-sm font-black text-slate-900 dark:text-white block leading-tight">184</span>
-                  <span className="text-[10px] text-slate-400 font-medium">Evidence</span>
-                </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                  <div className="flex justify-center text-emerald-600 dark:text-emerald-400 mb-1">
-                    <Cpu size={15} />
-                  </div>
-                  <span className="text-sm font-black text-slate-900 dark:text-white block leading-tight">7</span>
-                  <span className="text-[10px] text-slate-400 font-medium">Processing</span>
-                </div>
-                <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                  <div className="flex justify-center text-purple-600 dark:text-purple-400 mb-1">
-                    <Users size={15} />
-                  </div>
-                  <span className="text-sm font-black text-slate-900 dark:text-white block leading-tight">12</span>
-                  <span className="text-[10px] text-slate-400 font-medium">Under Review</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-            <h2 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">
-              Quick Actions
-            </h2>
-
-            <div className="grid grid-cols-2 gap-3">
-              {/* Tile 1: Upload Evidence */}
-              <button 
-                onClick={() => setShowUploadModal(true)}
-                className="p-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-900/30 flex flex-col items-center justify-center text-center transition-all group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                  <Upload size={16} />
-                </div>
-                <span className="text-xs font-bold text-emerald-900 dark:text-emerald-300">
-                  Upload Evidence
-                </span>
-              </button>
-
-              {/* Tile 2: Run Analysis */}
-              <button 
-                onClick={() => onViewChange && onViewChange('analysis')}
-                className="p-3.5 rounded-xl bg-purple-50 hover:bg-purple-100/80 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 border border-purple-100 dark:border-purple-900/30 flex flex-col items-center justify-center text-center transition-all group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                  <Sparkles size={16} />
-                </div>
-                <span className="text-xs font-bold text-purple-900 dark:text-purple-300">
-                  Run Analysis
-                </span>
-              </button>
-
-              {/* Tile 3: Generate Report */}
-              <button 
-                onClick={() => onViewChange && onViewChange('reports')}
-                className="p-3.5 rounded-xl bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 border border-amber-100 dark:border-amber-900/30 flex flex-col items-center justify-center text-center transition-all group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                  <FileText size={16} />
-                </div>
-                <span className="text-xs font-bold text-amber-900 dark:text-amber-300">
-                  Generate Report
-                </span>
-              </button>
-
-              {/* Tile 4: Share Case */}
-              <button 
-                onClick={() => alert('Share link copied to clipboard!')}
-                className="p-3.5 rounded-xl bg-blue-50 hover:bg-blue-100/80 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 border border-blue-100 dark:border-blue-900/30 flex flex-col items-center justify-center text-center transition-all group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-400 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                  <Share2 size={16} />
-                </div>
-                <span className="text-xs font-bold text-blue-900 dark:text-blue-300">
-                  Share Case
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Evidence Activity Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
-                Evidence Activity
-              </h2>
-              <button 
-                onClick={() => onViewChange && onViewChange('timeline')}
-                className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
-              >
-                View All <ArrowUpRight size={14} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {activityStream.map((act) => {
-                const ActIcon = act.icon;
-                return (
-                  <div key={act.id} className="flex items-start justify-between gap-3 text-xs">
-                    <div className="flex items-start gap-2.5">
-                      <div className="relative mt-1">
-                        <span className={`block w-2 h-2 rounded-full ${act.dotColor}`} />
-                      </div>
-                      <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                        <ActIcon size={14} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white leading-tight">
-                          {act.title}
-                        </p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          {act.subtitle}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-[11px] text-slate-400 whitespace-nowrap pt-0.5">
-                      {act.time}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* System Status Footer Bar */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 px-5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-          </span>
-          <span className="font-bold text-slate-800 dark:text-slate-200">System Status</span>
-          <span className="text-emerald-700 dark:text-emerald-400 font-bold ml-1">
-            All Systems Operational
-          </span>
-        </div>
-
-        <div className="flex items-center gap-6 text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <Database size={15} className="text-slate-400" />
-            <span>Storage: <strong className="text-emerald-600 dark:text-emerald-400">Operational</strong></span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Cpu size={15} className="text-slate-400" />
-            <span>Processing: <strong className="text-emerald-600 dark:text-emerald-400">Operational</strong></span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Sparkles size={15} className="text-slate-400" />
-            <span>AI Services: <strong className="text-emerald-600 dark:text-emerald-400">Operational</strong></span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck size={15} className="text-slate-400" />
-            <span>Integrity: <strong className="text-emerald-600 dark:text-emerald-400">Verified</strong></span>
-          </div>
-        </div>
-
-        <div className="text-[11px] text-slate-400">
-          Last Checked: <span className="font-medium text-slate-600 dark:text-slate-400">4 Sep 2025, 10:24</span>
-        </div>
-      </div>
-
-      {/* Modal: Create Case */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Plus size={18} className="text-emerald-600" /> Open New Investigation
-              </h2>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateSubmit} className="space-y-3">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Case / FIR Number</label>
-                <input 
-                  required
-                  placeholder="e.g. CR-2026-0046"
-                  value={newCase.caseNumber}
-                  onChange={(e) => setNewCase({ ...newCase, caseNumber: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Case Title</label>
-                <input 
-                  required
-                  placeholder="Short descriptive case title"
-                  value={newCase.title}
-                  onChange={(e) => setNewCase({ ...newCase, title: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Case Summary</label>
-                <textarea 
-                  rows={3}
-                  placeholder="Provide background details..."
-                  value={newCase.description}
-                  onChange={(e) => setNewCase({ ...newCase, description: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Priority</label>
-                  <select 
-                    value={newCase.priority}
-                    onChange={(e) => setNewCase({ ...newCase, priority: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="HIGH">High</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="LOW">Low</option>
-                  </select>
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                  <NumberTicker value={cases.length} />
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Security Level</label>
-                  <select 
-                    value={newCase.securityLevel}
-                    onChange={(e) => setNewCase({ ...newCase, securityLevel: e.target.value })}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="RESTRICTED">Restricted</option>
-                    <option value="CONFIDENTIAL">Confidential</option>
-                    <option value="TOP_SECRET">Top Secret</option>
-                  </select>
+                <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {t('Active Cases')}
                 </div>
               </div>
+            </div>
+            <ChevronRight size={18} className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+          </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button 
-                  type="button" 
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#1b4d3e] hover:bg-[#143c30] text-white font-bold shadow-xs"
-                >
-                  Open Case File
-                </button>
+
+          {/* Card 2: Total Evidence / Case Exhibits */}
+          <div 
+            onClick={() => {
+              if (canAccessGlobalEvidence(currentUser?.role)) {
+                onViewChange && onViewChange('evidence');
+              } else {
+                onViewChange && onViewChange('cases');
+              }
+            }}
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-blue-100 dark:border-slate-800 shadow-xs flex items-center justify-between cursor-pointer hover:border-blue-300 transition-all group"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900/50">
+                <FileText size={20} />
               </div>
-            </form>
+              <div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                  <NumberTicker value={documents.length} />
+                </div>
+                <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {canAccessGlobalEvidence(currentUser?.role) ? t('Total Evidence') : t('Case Exhibits')}
+                </div>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-slate-300 dark:text-slate-600 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+          </div>
+
+          {/* Card 3: Needs Review / Awaiting Allocation */}
+          <div 
+            onClick={() => onViewChange && onViewChange('cases')}
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-rose-100 dark:border-slate-800 shadow-xs flex items-center justify-between cursor-pointer hover:border-rose-300 transition-all group"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-100 dark:border-rose-900/50">
+                <Clock size={20} />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                  <NumberTicker value={isRegistrar ? unallocatedCases.length : cases.filter(c => c.status === 'INVESTIGATION' || c.status === 'Review').length} />
+                </div>
+                <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {isRegistrar ? t('Awaiting Allocation') : t('Needs Review')}
+                </div>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-slate-300 dark:text-slate-600 group-hover:text-rose-600 group-hover:translate-x-0.5 transition-all" />
+          </div>
+
+          {/* Card 4: Team Members (Purple) */}
+          <div 
+            onClick={() => onViewChange && onViewChange('users')}
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-purple-100 dark:border-slate-800 shadow-xs flex items-center justify-between cursor-pointer hover:border-purple-300 transition-all group"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-100 dark:border-purple-900/50">
+                <Users size={20} />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                  <NumberTicker value={11} />
+                </div>
+                <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {t('Team Members')}
+                </div>
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-slate-300 dark:text-slate-600 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
           </div>
         </div>
       )}
 
-      {/* Modal: Upload Evidence */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl w-full max-w-md shadow-2xl space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Upload size={18} className="text-emerald-600" /> Upload Digital Evidence
+      {/* ICJS Live Judicial Mesh Pipeline */}
+      <JudicialPipelineBadge />
+
+
+      {/* 2-Column Main Layout: Left 65% / Right 35% */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left Column: Active Investigations & Recent Evidence (Span 8) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Card 1: Active Investigations Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div className="p-4 sm:px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                {t('Active Investigations')}
               </h2>
-              <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button 
+                type="button" 
+                onClick={() => onViewChange && onViewChange('cases')}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+              >
+                <span>{t('View All')}</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                    <th className="py-3 px-5">{t('Case ID')}</th>
+                    <th className="py-3 px-4">{t('Title')}</th>
+                    <th className="py-3 px-4">{t('Priority')}</th>
+                    <th className="py-3 px-4">{t('Status')}</th>
+                    <th className="py-3 px-4">{t('Last Updated')}</th>
+                    <th className="py-3 px-4 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="p-0">
+                        <TableRowsSkeleton rows={5} cols={5} />
+                      </td>
+                    </tr>
+                  ) : displayCases.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400">
+                        <Folder className="mx-auto mb-2 opacity-30 text-slate-400" size={32} />
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{t('No active cases found')}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {canCreateCase(currentUser?.role)
+                            ? t('Click "Create Case" above to start your first investigation docket.')
+                            : t('Cases will appear here once allocated to your bench or counsel brief by the Registrar.')}
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    displayCases.slice(0, 5).map((c, idx) => {
+                      const isHigh = c.priority === 'High' || c.security_level === 'TOP_SECRET';
+                      const statusText = c.status || 'INVESTIGATION';
+                      return (
+                        <tr 
+                          key={c.id || idx}
+                          onClick={() => {
+                            setSelectedCaseOverview(c);
+                            if (onSelectCase) onSelectCase(c.id);
+                          }}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                        >
+                          <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 font-mono">
+                            {c.case_number}
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[180px]">
+                            {c.title}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isHigh 
+                                ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/50' 
+                                : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50'
+                            }`}>
+                              {t(isHigh ? 'High' : 'Medium')}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              statusText === 'CLOSED' || statusText === 'Closed'
+                                ? 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                                : statusText === 'CHARGE_SHEET' || statusText === 'Review'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50'
+                            }`}>
+                              {t(statusText)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400">
+                            {new Date(c.updated_at || c.created_at || Date.now()).toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); onSelectCase && onSelectCase(c.id); }}
+                              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                              <MoreVertical size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Card 2: Recent Evidence Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div className="p-4 sm:px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                {t('Recent Evidence')}
+              </h2>
+              <button 
+                type="button" 
+                onClick={() => {
+                  if (canAccessGlobalEvidence(currentUser?.role)) {
+                    onViewChange && onViewChange('evidence');
+                  } else {
+                    onViewChange && onViewChange('cases');
+                  }
+                }}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+              >
+                <span>{canAccessGlobalEvidence(currentUser?.role) ? t('View All') : t('View Cases')}</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                    <th className="py-3 px-5">{t('Name')}</th>
+                    <th className="py-3 px-4">{t('Type')}</th>
+                    <th className="py-3 px-4">{t('Case ID')}</th>
+                    <th className="py-3 px-4">{t('Status')}</th>
+                    <th className="py-3 px-4">{t('Uploaded At')}</th>
+                    <th className="py-3 px-4 text-right"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                  {recentEvidences.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                        <FileText size={28} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">{t('No evidence exhibits uploaded yet')}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{t('Upload digital evidence to track hash integrity and custody.')}</p>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            if (canAccessGlobalEvidence(currentUser?.role)) {
+                              onViewChange && onViewChange('evidence');
+                            } else {
+                              onViewChange && onViewChange('cases');
+                            }
+                          }}
+                          className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          <Upload size={13} />
+                          <span>{canAccessGlobalEvidence(currentUser?.role) ? t('Upload Evidence') : t('Open Cases')}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ) : (
+                    recentEvidences.map((item, idx) => {
+                      const { icon: Icon, color } = getDocIconInfo(item.mime_type, item.filename);
+                      const isVerified = item.status === 'processed' || item.status === 'verified';
+                      return (
+                        <tr 
+                          key={item.id || idx}
+                          onClick={() => {
+                            if (item.case_id && onSelectCase) {
+                              onSelectCase(item.case_id);
+                            } else if (canAccessGlobalEvidence(currentUser?.role)) {
+                              onViewChange && onViewChange('evidence');
+                            } else {
+                              onViewChange && onViewChange('cases');
+                            }
+                          }}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors cursor-pointer group"
+                        >
+                          <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`p-1.5 rounded-lg ${color}`}>
+                                <Icon size={14} />
+                              </div>
+                              <span className="truncate max-w-[140px]">{item.filename}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
+                            {item.document_type || item.document_category || 'Evidence'}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono font-medium text-slate-500">
+                            {item.case_number || 'N/A'}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isVerified
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50'
+                            }`}>
+                              {t(isVerified ? 'Verified' : (item.status || 'Uploaded'))}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400">
+                            {item.uploaded_at ? new Date(item.uploaded_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '-'}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (item.case_id && onSelectCase) {
+                                  onSelectCase(item.case_id);
+                                } else if (canAccessGlobalEvidence(currentUser?.role)) {
+                                  onViewChange && onViewChange('evidence');
+                                } else {
+                                  onViewChange && onViewChange('cases');
+                                }
+                              }}
+                              className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                              title={canAccessGlobalEvidence(currentUser?.role) ? "Inspect in Evidence Vault" : "View Case Docket"}
+                            >
+                              <ExternalLink size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Column: Case Overview, Quick Actions & Activity (Span 4) */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Card 1: Case Overview */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                {t('Case Overview')}
+              </h3>
+              {activeCaseItem && (
+                <button 
+                  type="button" 
+                  onClick={() => onSelectCase && onSelectCase(activeCaseItem.id)}
+                  className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <span>{t('View Details')}</span>
+                  <ArrowRight size={13} />
+                </button>
+              )}
+            </div>
+
+            {activeCaseItem ? (
+              <>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#0e1d3e] text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <Scale size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
+                        {activeCaseItem.case_number}
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        {activeCaseItem.title}
+                      </h4>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400">
+                    {t(activeCaseItem.status || 'Active')}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400 my-3 leading-relaxed">
+                  {activeCaseItem.description || t('No description provided.')}
+                </p>
+
+                {/* Metrics */}
+                <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                    <div className="flex items-center justify-center text-blue-500 mb-0.5">
+                      <FileText size={15} />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">
+                      {activeCaseItem.document_count || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-400">{t('Evidence')}</div>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                    <div className="flex items-center justify-center text-indigo-500 mb-0.5">
+                      <Settings2 size={15} />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">0</div>
+                    <div className="text-[10px] text-slate-400">{t('Processing')}</div>
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                    <div className="flex items-center justify-center text-purple-500 mb-0.5">
+                      <Users size={15} />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">1</div>
+                    <div className="text-[10px] text-slate-400">{t('Assigned')}</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6 text-slate-400">
+                <Folder size={32} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{t('No Case Selected')}</p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-[220px] mx-auto">
+                  {canCreateCase(currentUser?.role)
+                    ? t('Create your first case to begin tracking evidence and investigations.')
+                    : t('Assigned cases will appear here once allocated by the Court Registrar.')}
+                </p>
+                {canCreateCase(currentUser?.role) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(true)}
+                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>{t('New Case')}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Card 2: Quick Actions 2x2 Grid */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">
+              {t('Quick Actions')}
+            </h3>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button 
+                type="button"
+                onClick={() => {
+                  if (activeCaseItem && onSelectCase) {
+                    onSelectCase(activeCaseItem.id);
+                  } else if (canAccessGlobalEvidence(currentUser?.role)) {
+                    onViewChange && onViewChange('evidence');
+                  } else {
+                    onViewChange && onViewChange('cases');
+                  }
+                }}
+                className="p-3 rounded-xl bg-blue-50/70 hover:bg-blue-100/70 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/40 flex flex-col items-center text-center transition-all cursor-pointer shadow-2xs group"
+              >
+                <Upload size={18} className="text-blue-600 mb-1 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold">{t('Upload Evidence')}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => onViewChange && onViewChange('radar')}
+                className="p-3 rounded-xl bg-purple-50/70 hover:bg-purple-100/70 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/80 dark:border-purple-900/40 flex flex-col items-center text-center transition-all cursor-pointer shadow-2xs group"
+              >
+                <Sparkles size={18} className="text-purple-600 mb-1 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold">{t('Run Analysis')}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => onViewChange && onViewChange('reports')}
+                className="p-3 rounded-xl bg-amber-50/70 hover:bg-amber-100/70 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-900/40 flex flex-col items-center text-center transition-all cursor-pointer shadow-2xs group"
+              >
+                <FileSpreadsheet size={18} className="text-amber-600 mb-1 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold">{t('Generate Report')}</span>
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => {
+                  if (isRegistrar) {
+                    onViewChange && onViewChange('cases');
+                  } else if (canCreateCase(currentUser?.role)) {
+                    setShowCreateModal(true);
+                  } else {
+                    onViewChange && onViewChange('cases');
+                  }
+                }}
+                className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 dark:bg-slate-800/60 dark:text-slate-200 border border-slate-200 dark:border-slate-700 flex flex-col items-center text-center transition-all cursor-pointer shadow-2xs group"
+              >
+                {isRegistrar ? (
+                  <Scale size={18} className="text-blue-600 dark:text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
+                ) : canCreateCase(currentUser?.role) ? (
+                  <Plus size={18} className="text-slate-600 dark:text-slate-300 mb-1 group-hover:scale-110 transition-transform" />
+                ) : (
+                  <Folder size={18} className="text-blue-600 dark:text-blue-400 mb-1 group-hover:scale-110 transition-transform" />
+                )}
+                <span className="text-xs font-bold">
+                  {isRegistrar ? t('Allocate Benches') : canCreateCase(currentUser?.role) ? t('New Case') : t('My Cases')}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Card 3: Evidence Activity */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                {t('Evidence Activity')}
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => onViewChange && onViewChange('timeline')}
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
+              >
+                <span>{t('View All')}</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              {auditLogs && auditLogs.length > 0 ? (
+                auditLogs.slice(0, 5).map((log, idx) => (
+                  <div key={log.id || idx} className="flex items-start gap-3">
+                    <span className="h-2 w-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                        {t(log.action || 'Activity recorded')}
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-mono truncate max-w-[200px]">
+                        {log.details ? (typeof log.details === 'string' ? log.details : JSON.stringify(log.details)) : (log.entity_type || '')}
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-slate-400 shrink-0">
+                      {log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6 text-slate-400">
+                  <Clock size={28} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{t('No activity recorded yet')}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{t('Audit trail will log actions automatically.')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* Bottom System Status Bar */}
+      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-800 dark:text-slate-200">{t('System Status:')}</span>
+          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            {t('All Systems Operational')}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-5 sm:gap-6 text-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-1.5">
+            <Database size={14} className="text-slate-400" />
+            <span>{t('Storage:')} <strong className="text-emerald-600 dark:text-emerald-400">{t('Operational')}</strong></span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Settings2 size={14} className="text-slate-400" />
+            <span>{t('Processing:')} <strong className="text-emerald-600 dark:text-emerald-400">{t('Operational')}</strong></span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={14} className="text-slate-400" />
+            <span>{t('AI Services:')} <strong className="text-emerald-600 dark:text-emerald-400">{t('Operational')}</strong></span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-slate-400" />
+            <span>{t('Integrity:')} <strong className="text-emerald-600 dark:text-emerald-400">{t('Verified')}</strong></span>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-slate-400">
+          {t('Last Checked:')} 4 Sep 2025, 10:24
+        </div>
+      </div>
+
+      {/* Create Case Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{t('Create New Case Docket')}</h3>
+              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl text-center flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800/40">
-              <Upload size={32} className="text-emerald-600 mb-2" />
-              <p className="font-bold text-slate-800 dark:text-slate-200">Drag & Drop evidence files here</p>
-              <p className="text-slate-400 mt-1">Supports PDF, MP4, CSV, PNG, JPG files</p>
-              <input type="file" className="hidden" id="evidence-upload-input" />
-              <label 
-                htmlFor="evidence-upload-input"
-                className="mt-4 px-4 py-2 rounded-xl bg-[#1b4d3e] text-white font-bold cursor-pointer hover:bg-[#143c30] transition-colors"
-              >
-                Browse Files
-              </label>
-            </div>
+            <form onSubmit={handleCreateCaseSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">{t('Case Number')}</label>
+                <input
+                  type="text"
+                  required
+                  value={newCaseData.caseNumber}
+                  onChange={(e) => setNewCaseData({ ...newCaseData, caseNumber: e.target.value })}
+                  placeholder="e.g. CR-2026-0046"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-              <span className="text-slate-400">BSA Sec 63 SHA-256 Hash Active</span>
-              <button 
-                onClick={() => setShowUploadModal(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold"
-              >
-                Done
-              </button>
-            </div>
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">{t('Title')}</label>
+                <input
+                  type="text"
+                  required
+                  value={newCaseData.title}
+                  onChange={(e) => setNewCaseData({ ...newCaseData, title: e.target.value })}
+                  placeholder="e.g. Cyber Investigation or Armed Robbery"
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">{t('Description')}</label>
+                <textarea
+                  rows={3}
+                  value={newCaseData.description}
+                  onChange={(e) => setNewCaseData({ ...newCaseData, description: e.target.value })}
+                  placeholder={t('Brief summary of the incident and seized devices/exhibits...')}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 font-semibold cursor-pointer"
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                >
+                  {t('Create Docket')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

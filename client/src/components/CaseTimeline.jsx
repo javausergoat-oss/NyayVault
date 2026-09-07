@@ -1,4 +1,5 @@
 import { Clock, Shield, Search, Gavel, Scale, FileText, User } from 'lucide-react';
+import TracingBeam from './ui/TracingBeam';
 
 export default function CaseTimeline({ documents }) {
   const sortedDocs = [...(documents || [])].sort(
@@ -26,8 +27,9 @@ export default function CaseTimeline({ documents }) {
   }
 
   return (
-    <div className="relative py-4 max-w-3xl mx-auto space-y-6">
-      <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
+    <TracingBeam className="px-2 md:px-6">
+      <div className="relative py-4 max-w-3xl mx-auto space-y-6">
+        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-800" />
 
       {sortedDocs.map((doc, idx) => {
         const Icon = getCategoryIcon(doc.document_category);
@@ -70,6 +72,7 @@ export default function CaseTimeline({ documents }) {
           </div>
         );
       })}
-    </div>
+      </div>
+    </TracingBeam>
   );
 }

@@ -47,7 +47,7 @@ export default function CrossCaseRadar() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
             <input
               type="text"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 focus:border-emerald-500 focus:outline-none transition-colors text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-colors text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
               placeholder="Enter suspect name, phone number, vehicle registration, or MO pattern..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -56,7 +56,7 @@ export default function CrossCaseRadar() {
           <button 
             type="submit"
             disabled={loading || !query.trim()}
-            className="bg-[#1b4d3e] hover:bg-[#143c30] text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-50 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
           >
             {loading ? <Loader2 className="animate-spin" size={16} /> : 'Scan Network'}
           </button>

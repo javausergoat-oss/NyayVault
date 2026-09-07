@@ -1,18 +1,41 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, FileText, Database } from 'lucide-react';
+import { 
+  Send, 
+  Bot, 
+  User, 
+  Loader2, 
+  FileText, 
+  ChevronRight, 
+  Sparkles, 
+  Scale, 
+  ShieldCheck, 
+  HelpCircle, 
+  Copy, 
+  Check,
+  AlertTriangle,
+  Lightbulb
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchApi } from '../services/api';
+
+const PROMPT_SUGGESTIONS = [
+  { id: 1, text: "Highlight timeline gaps or contradictions in the FIR", icon: AlertTriangle },
+  { id: 2, text: "Compare witness statements against forensic findings", icon: Scale },
+  { id: 3, text: "List all seized ballistic & physical evidence items", icon: ShieldCheck },
+  { id: 4, text: "Check admissibility under Sec 63 Bharatiya Sakshya Adhiniyam", icon: FileText }
+];
 
 export default function CaseAssistant({ caseId }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Investigation Case Intelligence Active. Ask questions regarding evidence, timelines, or cross-referenced facts in this case.',
+      content: 'Greetings Officer. I am your NyayVault AI Legal Intelligence Assistant. I have indexed all witness statements, forensic reports, and seizure memos in this case vault. How can I assist your investigation today?',
       sources: []
     }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copiedIdx, setCopiedIdx] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -23,30 +46,29 @@ export default function CaseAssistant({ caseId }) {
     scrollToBottom();
   }, [messages, loading]);
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || loading) return;
+  const handleSend = async (customPrompt) => {
+    const textToSend = typeof customPrompt === 'string' ? customPrompt : input.trim();
+    if (!textToSend || loading) return;
 
-    const userMsg = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setMessages(prev => [...prev, { role: 'user', content: textToSend }]);
     setLoading(true);
 
     try {
       const res = await fetchApi(`/cases/${caseId}/chat`, {
         method: 'POST',
-        body: { message: userMsg }
+        body: { message: textToSend }
       });
       
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: res.response,
-        sources: res.sources
+        content: res.response || 'Analysis complete with no direct matches found.',
+        sources: res.sources || []
       }]);
     } catch (err) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `Error retrieving case intelligence: ${err.message}`,
+        content: `Error connecting to AI Vault: ${err.message}. Please verify local model connectivity.`,
         isError: true 
       }]);
     } finally {
@@ -54,103 +76,170 @@ export default function CaseAssistant({ caseId }) {
     }
   };
 
+  const handleCopy = (content, idx) => {
+    navigator.clipboard.writeText(content);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
   return (
-    <div className="flex flex-col h-[580px] border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-center justify-between">
+    <div className="flex flex-col h-[650px] border border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 overflow-hidden shadow-xl">
+      {/* Header with AI Engine status */}
+      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
-            <Bot size={18} />
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+            <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="font-bold text-sm text-slate-900 dark:text-white">Case Intelligence Assistant</h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">Contextual Evidence Analysis & Citation Engine</p>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                NyayVault AI Assistant
+              </h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                RAG Engine
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span>Contextually grounded on Case #{caseId} Records</span>
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-200/60 dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-400">
-          <Database size={13} /> Vault RAG Active
+
+        <div className="hidden sm:flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 font-mono">
+          <span>Zero PII Leakage</span>
         </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+      {/* Suggested Quick Question Prompts */}
+      <div className="px-4 py-2.5 bg-slate-100/60 dark:bg-slate-800/30 border-b border-slate-200/80 dark:border-slate-800 overflow-x-auto scrollbar-none flex items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0 flex items-center gap-1">
+          <Lightbulb size={12} className="text-amber-500" />
+          Quick Prompts:
+        </span>
+        {PROMPT_SUGGESTIONS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              disabled={loading}
+              onClick={() => handleSend(item.text)}
+              className="text-xs px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:border-blue-700 border border-slate-200 dark:border-slate-700 font-medium shrink-0 transition-all flex items-center gap-1.5 shadow-2xs disabled:opacity-50"
+            >
+              <Icon size={12} className="text-blue-500" />
+              <span>{item.text}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Message Stream */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 bg-[#fbfcfe] dark:bg-slate-950/40">
         <AnimatePresence>
           {messages.map((msg, idx) => (
             <motion.div 
               key={idx}
-              initial={{ opacity: 0, y: 4 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
             >
-              <div className={`shrink-0 rounded-lg h-7 w-7 flex items-center justify-center text-xs font-bold ${
-                msg.role === 'user' ? 'bg-[#1b4d3e] text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+              <div className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-xs ${
+                msg.role === 'user' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-slate-900 text-white dark:bg-slate-800 border border-slate-700'
               }`}>
-                {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
+                {msg.role === 'user' ? <User size={15} /> : <Bot size={15} />}
               </div>
               
-              <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[82%]`}>
-                <div className={`p-3 rounded-xl ${
+              <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                <div className={`p-4 rounded-2xl relative group ${
                   msg.role === 'user' 
-                    ? 'bg-[#1b4d3e] text-white' 
+                    ? 'bg-blue-600 text-white rounded-tr-xs shadow-md shadow-blue-600/15' 
                     : msg.isError 
-                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-900/30' 
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60'
+                      ? 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/50' 
+                      : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-tl-xs border border-slate-200 dark:border-slate-800 shadow-xs'
                 }`}>
-                  <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  <p className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed">{msg.content}</p>
+                  
+                  {/* Quick Copy Button */}
+                  {msg.role !== 'user' && (
+                    <button
+                      onClick={() => handleCopy(msg.content, idx)}
+                      className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-opacity p-1 rounded-md"
+                      title="Copy response"
+                    >
+                      {copiedIdx === idx ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                    </button>
+                  )}
                 </div>
                 
+                {/* Source Citations with Expandable Excerpts */}
                 {msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-2 space-y-1.5 w-full">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-                      Cited Evidence Files
-                    </p>
-                    {msg.sources.map((src, i) => (
-                      <div key={i} className="p-2 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px]">
-                        <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 mb-0.5">
-                          <FileText size={12} />
-                          {src.filename}
+                  <div className="mt-2.5 space-y-1.5 w-full">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1 ml-1">
+                      <FileText size={11} className="text-blue-500" />
+                      Verified Document Citations ({msg.sources.length}):
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {msg.sources.map((src, i) => (
+                        <div key={i} className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                          <div className="flex items-center gap-1.5 font-bold text-blue-600 dark:text-blue-400 mb-1 truncate">
+                            <FileText size={12} className="shrink-0" />
+                            <span className="truncate">{src.filename}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-400 italic line-clamp-2 leading-relaxed">
+                            "{src.text_snippet}"
+                          </p>
                         </div>
-                        <p className="text-slate-500 italic line-clamp-2 font-mono">
-                          "{src.text_snippet}"
-                        </p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             </motion.div>
           ))}
+
           {loading && (
-            <div className="flex gap-3">
-              <div className="shrink-0 rounded-lg h-7 w-7 bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">
-                <Bot size={14} />
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex gap-3"
+            >
+              <div className="shrink-0 w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                <Bot size={15} />
               </div>
-              <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center gap-2">
-                <span className="animate-pulse">Retrieving evidence facts...</span>
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-tl-xs flex items-center gap-3 shadow-xs">
+                <Loader2 size={16} className="animate-spin text-blue-600" />
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  Retrieving evidence vectors & cross-checking statements...
+                </span>
               </div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <form onSubmit={handleSend} className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex items-center gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          disabled={loading}
-          placeholder="Ask a question regarding case documents, timeline, or witness statements..."
-          className="flex-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 placeholder:text-slate-400"
-        />
-        <button 
-          type="submit"
-          disabled={!input.trim() || loading}
-          className="p-2 bg-[#1b4d3e] hover:bg-[#143c30] text-white rounded-xl disabled:opacity-40 transition-colors"
-        >
-          <Send size={15} />
-        </button>
+      {/* Input Bar */}
+      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            disabled={loading}
+            placeholder="Ask question about this case (e.g. 'Compare witness timeline')..."
+            className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl py-3 pl-4 pr-12 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-50 transition-all"
+          />
+          <button 
+            type="submit"
+            disabled={!input.trim() || loading}
+            className="absolute right-2 p-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl disabled:opacity-40 transition-colors shadow-xs cursor-pointer"
+          >
+            <Send size={15} />
+          </button>
+        </div>
       </form>
     </div>
   );

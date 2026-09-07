@@ -16,8 +16,9 @@ import { getCaseById } from './caseService.js';
  * @returns {Promise<Object>} Created document record
  */
 export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.1' }) {
-  // 1. Verify case exists
-  await getCaseById(caseId);
+  // 1. Verify case exists and obtain canonical case ID
+  const caseItem = await getCaseById(caseId);
+  const canonicalCaseId = caseItem.id;
 
   // 2. Validate file integrity & format
   const validation = validateEvidenceFile(file);
@@ -30,7 +31,7 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
   // 3. Generate unique document ID and clean filename
   const documentId = `doc-${uuidv4().substring(0, 10)}`;
   const cleanFilename = sanitizeFilename(file.originalname);
-  const storageKey = `cases/${caseId}/documents/${documentId}/${cleanFilename}`;
+  const storageKey = `cases/${canonicalCaseId}/documents/${documentId}/${cleanFilename}`;
 
   // 4. Calculate SHA-256 hash immediately on raw uploaded bytes
   const sha256Hash = calculateBufferHash(file.buffer);
@@ -79,7 +80,7 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
 
     const docRes = await query(insertDocSql, [
       documentId,
-      caseId,
+      canonicalCaseId,
       cleanFilename,
       storageKey,
       mimeType,
@@ -96,7 +97,7 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
     // 7. Record Chain of Custody Audit Log
     await logAuditEvent({
       userId: uploaderId,
-      caseId,
+      caseId: canonicalCaseId,
       documentId,
       action: AuditActions.DOCUMENT_UPLOADED,
       ipAddress,
@@ -127,8 +128,8 @@ export async function uploadDocument({ caseId, file, user, ipAddress = '127.0.0.
  * Retrieves all documents for a case.
  */
 export async function getDocumentsByCase(caseId, user = null) {
-  // Ensure case exists
-  await getCaseById(caseId);
+  // Ensure case exists and obtain canonical case ID
+  const caseItem = await getCaseById(caseId);
 
   let sql = `
     SELECT 
@@ -150,13 +151,12 @@ export async function getDocumentsByCase(caseId, user = null) {
       u.full_name as uploaded_by_name,
       u.badge_number as uploaded_by_badge,
       u.role as uploaded_by_role,
-      u.department as uploaded_by_department,
       u.department as uploaded_by_department
     FROM documents d
     LEFT JOIN users u ON d.uploaded_by = u.id
     WHERE d.case_id = $1
   `;
-  const params = [caseId];
+  const params = [caseItem.id];
   if (user && user.role === 'INVESTIGATING_OFFICER') {
     sql += ` AND d.document_category = 'INVESTIGATION'`;
   }
@@ -281,7 +281,7 @@ export async function downloadDocument(documentId, user, ipAddress = '127.0.0.1'
   return {
     stream,
     filename: doc.filename,
-    contentType: doc.mime_type || contentType,
+    contentType: doc.mime_type || contentType || 'application/octet-stream',
     contentLength: doc.file_size || contentLength,
     sha256Hash: doc.sha256_hash,
   };
@@ -378,3 +378,89 @@ export async function applyRedactionsToDocument(documentId, redactions, user, ip
 
   return newDocRecord;
 }
+
+export const GLOBAL_EVIDENCE_ROLES = [
+  'REGISTRAR', 
+  'COURT_REGISTRAR', 
+  'FORENSIC_EXAMINER', 
+  'FORENSIC', 
+  'CUSTODIAN', 
+  'ADMIN'
+];
+
+/**
+ * Validates whether a user is authorized to inspect, download, or verify a document.
+ * Global authorities have unrestricted access.
+ * Case-restricted roles (Police, Judges, Defense/Prosecution Lawyers) are strictly confined to their assigned case dockets.
+ */
+export async function checkDocumentAccess(documentId, user) {
+  if (!user) return false;
+  if (GLOBAL_EVIDENCE_ROLES.includes(user.role)) return true;
+
+  const sql = `
+    SELECT 1 FROM documents d
+    JOIN cases c ON d.case_id = c.id
+    WHERE d.id = $1 AND (
+      c.created_by = $2
+      OR EXISTS (
+        SELECT 1 FROM case_assignments ca 
+        WHERE ca.case_id = d.case_id AND ca.user_id = $2
+      )
+    );
+  `;
+  const res = await query(sql, [documentId, user.id]);
+  return res.rows.length > 0;
+}
+
+/**
+ * Retrieves evidence documents.
+ * For global roles (Registrar, Forensics, Custodian, Admin), returns all documents across the system.
+ * For case-restricted roles (Police, Judges, Lawyers), returns ONLY documents belonging to cases they own or are assigned to.
+ */
+export async function listAllDocuments(user = null) {
+  let sql = `
+    SELECT 
+      d.id,
+      d.case_id,
+      d.filename,
+      d.storage_key,
+      d.mime_type,
+      d.file_size,
+      d.sha256_hash,
+      d.status,
+      d.document_type,
+      d.document_category,
+      d.classification_confidence,
+      d.is_redacted,
+      d.parent_document_id,
+      d.uploaded_at,
+      u.id as uploader_id,
+      u.full_name as uploaded_by_name,
+      u.badge_number as uploaded_by_badge,
+      u.role as uploaded_by_role,
+      u.department as uploaded_by_department,
+      c.case_number,
+      c.title as case_title
+    FROM documents d
+    LEFT JOIN users u ON d.uploaded_by = u.id
+    LEFT JOIN cases c ON d.case_id = c.id
+  `;
+  const params = [];
+  const conditions = [];
+
+  // Strict Judicial Boundary: Non-custodians only see documents from cases they own or are assigned to
+  if (user && !GLOBAL_EVIDENCE_ROLES.includes(user.role)) {
+    params.push(user.id);
+    conditions.push(`(c.created_by = $${params.length} OR EXISTS (SELECT 1 FROM case_assignments ca WHERE ca.case_id = d.case_id AND ca.user_id = $${params.length}))`);
+  }
+
+  if (conditions.length > 0) {
+    sql += ` WHERE ` + conditions.join(' AND ');
+  }
+
+  sql += ` ORDER BY d.uploaded_at DESC;`;
+
+  const res = await query(sql, params);
+  return res.rows;
+}
+

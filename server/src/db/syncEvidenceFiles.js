@@ -243,22 +243,28 @@ async function syncEvidence() {
     const textContent = EVIDENCE_TEXTS[doc.filename] || doc.extracted_text || `Document content for ${doc.filename}`;
 
     // Write to all bucket paths and directly to storage
+    const fileContent = textContent;
+
     for (const b of buckets) {
       const target = path.resolve(localStorageRoot, b, doc.storage_key);
       fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.writeFileSync(target, textContent, 'utf8');
+      fs.writeFileSync(target, fileContent, 'utf8');
     }
 
     const directTarget = path.resolve(localStorageRoot, doc.storage_key);
     fs.mkdirSync(path.dirname(directTarget), { recursive: true });
-    fs.writeFileSync(directTarget, textContent, 'utf8');
+    fs.writeFileSync(directTarget, fileContent, 'utf8');
 
-    // Also update extracted_text in DB if missing
+    // Also update extracted_text in DB if missing and UPDATE sha256_hash!
+    const crypto = await import('crypto');
+    const hash = crypto.createHash('sha256').update(fileContent, 'utf8').digest('hex');
+    await query('UPDATE documents SET sha256_hash = $1 WHERE id = $2', [hash, doc.id]);
+    
     if (!doc.extracted_text && EVIDENCE_TEXTS[doc.filename]) {
       await query('UPDATE documents SET extracted_text = $1 WHERE id = $2', [EVIDENCE_TEXTS[doc.filename], doc.id]);
     }
 
-    console.log(`✅ Synced file: ${doc.filename} -> ${doc.storage_key}`);
+    console.log(`✅ Synced file: ${doc.filename} -> ${doc.storage_key} (Hash: ${hash})`);
   }
 
   console.log('🎉 All evidence files successfully created and cached!');
