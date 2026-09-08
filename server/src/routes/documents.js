@@ -104,9 +104,6 @@ router.get('/:documentId/download', verifyDocAccess, async (req, res, next) => {
 
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.setHeader('Content-Type', contentType);
-    if (contentLength) {
-      res.setHeader('Content-Length', contentLength);
-    }
     res.setHeader('X-Evidence-SHA256', sha256Hash);
 
     stream.pipe(res);

@@ -134,21 +134,34 @@ export async function updateCaseStatus(caseId, status) {
 }
 
 export async function fetchDocumentBlob(documentId) {
-  const res = await fetch(`${BASE_URL}/documents/${documentId}/download`, {
-    headers: getAuthHeader()
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `Failed to download file (HTTP ${res.status})`);
+  try {
+    const res = await fetch(`${BASE_URL}/documents/${documentId}/download`, {
+      headers: getAuthHeader(),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Failed to download file (HTTP ${res.status})`);
+    }
+
+    const blob = await res.blob();
+    const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';
+    const sha256 = res.headers.get('x-evidence-sha256') || null;
+    const objectUrl = URL.createObjectURL(blob);
+
+    return { blob, objectUrl, contentType, sha256 };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Evidence stream request timed out (vault proxy busy).');
+    }
+    throw err;
   }
-
-  const blob = await res.blob();
-  const contentType = res.headers.get('content-type') || blob.type || 'application/octet-stream';
-  const sha256 = res.headers.get('x-evidence-sha256') || null;
-  const objectUrl = URL.createObjectURL(blob);
-
-  return { blob, objectUrl, contentType, sha256 };
 }
 
 export async function assignCase(caseId, allocationData) {

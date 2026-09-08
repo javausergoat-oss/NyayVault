@@ -79,7 +79,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
   const [verifyResult, setVerifyResult] = useState({});
   const [copiedHash, setCopiedHash] = useState(null);
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const [viewerTab, setViewerTab] = useState('transcript'); // 'transcript', 'entities', 'metadata'
+  const [viewerTab, setViewerTab] = useState('entities'); // default to 'entities' (Forensic Intelligence)
   const [inspectorMode, setInspectorMode] = useState('split'); // 'split', 'preview', 'transcript'
   const [loadingDoc, setLoadingDoc] = useState(null);
   const [redactingDoc, setRedactingDoc] = useState(null);
@@ -155,7 +155,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
       });
       const fullDoc = await res.json();
       setSelectedDoc(fullDoc.document);
-      setViewerTab('transcript');
+      setViewerTab('entities'); // Default to Forensic Intelligence on inspector open
     } catch (err) {
       console.error("Failed to load viewer:", err);
       alert("Error loading document.");
@@ -525,7 +525,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-950/75 backdrop-blur-md flex items-center justify-center z-50 p-4 sm:p-6"
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-[100] p-3 sm:p-6"
           >
             <motion.div 
               initial={{ scale: 0.96, opacity: 0, y: 10 }}
@@ -621,6 +621,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                       documentId={selectedDoc.id} 
                       filename={selectedDoc.filename} 
                       documentType={selectedDoc.document_type} 
+                      document={selectedDoc}
                     />
                   </div>
                 )}
@@ -634,6 +635,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                         documentId={selectedDoc.id} 
                         filename={selectedDoc.filename} 
                         documentType={selectedDoc.document_type} 
+                        document={selectedDoc}
                       />
                     </div>
 

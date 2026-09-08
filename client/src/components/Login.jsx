@@ -67,7 +67,10 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
   };
 
   return (
-    <div className="min-h-screen lg:h-screen lg:max-h-screen flex flex-col justify-between bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 lg:px-12 lg:py-5 overflow-x-hidden overflow-y-auto lg:overflow-y-hidden transition-colors duration-200">
+    <div 
+      style={{ zoom: '110%' }}
+      className="min-h-screen flex flex-col justify-between bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 p-4 lg:px-12 lg:py-5 overflow-x-hidden overflow-y-auto transition-colors duration-200"
+    >
       
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80 pb-3 sm:pb-4 shrink-0">

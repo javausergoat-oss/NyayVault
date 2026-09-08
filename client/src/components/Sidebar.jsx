@@ -142,7 +142,7 @@ export default function Sidebar({ activeView, onViewChange, currentUser, mobileO
   return (
     <>
       {/* Desktop Persistent Sidebar (>= lg) */}
-      <aside className="hidden lg:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 h-full select-none z-30 transition-colors">
+      <aside className="hidden lg:flex w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex-col shrink-0 h-full select-none z-10 transition-colors">
         <SidebarContent />
       </aside>
 

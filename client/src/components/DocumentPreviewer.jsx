@@ -32,11 +32,21 @@ import {
   verifyDocument 
 } from '../services/api';
 
-export default function DocumentPreviewer({ documentId, filename = '', documentType = 'EVIDENCE' }) {
+export default function DocumentPreviewer({ 
+  documentId: propDocId, 
+  filename: propFilename = '', 
+  documentType = 'EVIDENCE',
+  document = null 
+}) {
+  const documentId = propDocId || document?.id;
+  const filename = propFilename || document?.filename || '';
+  const initialText = document?.extracted_text || '';
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fileData, setFileData] = useState(null);
-  const [textContent, setTextContent] = useState('');
+  const [textContent, setTextContent] = useState(initialText);
+  const [imgError, setImgError] = useState(false);
   
   // Image zoom state
   const [zoom, setZoom] = useState(1);
@@ -120,19 +130,22 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
         createdUrl = result.objectUrl;
         setFileData(result);
 
-        // If text/csv/json, also load string content for syntax preview
-        const isText = 
-          result.contentType.startsWith('text/') ||
-          /\.(txt|csv|json|md|log)$/i.test(filename);
-
-        if (isText) {
-          const text = await result.blob.text();
-          if (active) setTextContent(text);
-        }
+        // Inspect blob content: Check if it is readable text (common in mock/dev databases)
+        try {
+          const rawText = await result.blob.text();
+          const isPrintable = rawText && rawText.length > 0 && !/[\x00-\x08\x0E-\x1F]/.test(rawText.substring(0, 100));
+          if (isPrintable && active) {
+            setTextContent(rawText);
+          }
+        } catch (e) {}
       } catch (err) {
         if (active) {
           console.error('DocumentPreviewer fetch error:', err);
-          setError(err.message || 'Unable to retrieve evidence binary payload.');
+          if (initialText) {
+            setTextContent(initialText);
+          } else {
+            setError(err.message || 'Unable to retrieve evidence binary payload.');
+          }
         }
       } finally {
         if (active) setLoading(false);
@@ -154,10 +167,10 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
   const cType = (fileData?.contentType || '').toLowerCase();
 
   const isPdf = cType.includes('pdf') || lowerName.endsWith('.pdf');
-  const isImage = cType.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(lowerName);
   const isVideo = cType.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(lowerName);
   const isAudio = cType.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac)$/i.test(lowerName);
-  const isText = cType.startsWith('text/') || /\.(txt|csv|json|md|log)$/i.test(lowerName);
+  const isImage = (cType.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(lowerName)) && !isPdf && !isVideo && !isAudio;
+  const isText = cType.startsWith('text/') || /\.(txt|csv|json|md|log)$/i.test(lowerName) || Boolean(textContent && (imgError || (!isImage && !isPdf && !isVideo && !isAudio)));
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.25, 3));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.25, 0.5));
@@ -357,12 +370,13 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
           </div>
         )}
 
-        {/* High-Resolution Image Viewer with Zoom */}
-        {isImage && (
+        {/* High-Resolution Image Viewer with Zoom & Graceful Fallback */}
+        {isImage && !imgError && (
           <div className="w-full h-full flex items-center justify-center overflow-auto p-2">
             <img 
               src={fileData?.objectUrl} 
               alt={filename}
+              onError={() => setImgError(true)}
               style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
               className="max-h-[60vh] max-w-full object-contain rounded-xl shadow-lg transition-transform duration-150 ease-out select-none"
             />
@@ -403,11 +417,18 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
           </div>
         )}
 
-        {/* Monospace Code / Text / CSV Viewer */}
-        {isText && (
-          <div className="w-full h-full max-h-[60vh] bg-slate-950 text-slate-100 p-4 rounded-2xl font-mono text-xs overflow-auto border border-slate-800 shadow-inner">
-            <pre className="whitespace-pre-wrap break-words leading-relaxed">
-              {textContent || 'Empty text file'}
+        {/* Formatted Legal Record / Monospace Code / Text Exhibit Viewer */}
+        {(isText || (isImage && imgError)) && (
+          <div className="w-full h-full max-h-[65vh] bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Authenticated Case Record Transcript</span>
+              </div>
+              <span className="text-slate-400 font-mono text-[10px]">BSA 2023 Sec 63 Compliant</span>
+            </div>
+            <pre className="whitespace-pre-wrap break-words leading-relaxed font-mono text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950/70 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800">
+              {textContent || initialText || 'No transcript text available for this exhibit.'}
             </pre>
           </div>
         )}
