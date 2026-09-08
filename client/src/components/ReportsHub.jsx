@@ -241,17 +241,26 @@ export default function ReportsHub({ currentUser }) {
     <div className="space-y-6 pb-12">
       {/* Top Banner */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
-            <Building2 size={16} />
-            <span>Bharatiya Sakshya Adhiniyam 2023 Compliant</span>
+        <div className="flex items-start gap-4">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-md border border-slate-200 dark:border-slate-700 bg-[#071228] p-1 shrink-0 hidden sm:flex items-center justify-center">
+            <img 
+              src="/nyayvault-icon.png" 
+              alt="NyayVault" 
+              className="w-full h-full object-cover rounded-xl" 
+            />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            Legal Reports & Admissibility Hub
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Generate tamper-evident Section 63 BSA electronic records certificates, forensic dossiers, and court compliance exhibits.
-          </p>
+          <div>
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider mb-1">
+              <Building2 size={16} />
+              <span>Bharatiya Sakshya Adhiniyam 2023 Compliant</span>
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              Legal Reports & Admissibility Hub
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Generate tamper-evident Section 63 BSA electronic records certificates, forensic dossiers, and court compliance exhibits.
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

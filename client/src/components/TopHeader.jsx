@@ -133,6 +133,16 @@ export default function TopHeader({
           <Menu size={20} />
         </button>
 
+        <div className="lg:hidden flex items-center mr-2.5 shrink-0">
+          <div className="w-8 h-8 rounded-lg overflow-hidden shadow-xs border border-slate-200 dark:border-slate-700 bg-[#071228] p-0.5 flex items-center justify-center">
+            <img 
+              src="/nyayvault-icon.png" 
+              alt="NyayVault" 
+              className="w-full h-full object-cover rounded-md" 
+            />
+          </div>
+        </div>
+
         <div className="relative w-full">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input

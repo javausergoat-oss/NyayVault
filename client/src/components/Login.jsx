@@ -89,13 +89,22 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
 
           <div className="h-10 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block" />
 
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
-              Nyay<span className="text-blue-600 dark:text-blue-500">Vault</span>
-            </h1>
-            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 leading-none">
-              Evidence Today. A Safer Tomorrow.
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-xl overflow-hidden shadow-xs border border-slate-200/90 dark:border-slate-700/90 bg-[#071228] p-0.5 shrink-0 flex items-center justify-center">
+              <img 
+                src="/nyayvault-icon.png" 
+                alt="NyayVault Emblem" 
+                className="w-full h-full object-cover rounded-lg" 
+              />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
+                Nyay<span className="text-blue-600 dark:text-blue-500">Vault</span>
+              </h1>
+              <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 leading-none">
+                Evidence Today. A Safer Tomorrow.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -199,8 +208,12 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
           >
             {/* Top: Header Badge & Title */}
             <div className="text-center shrink-0 mb-2">
-              <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-blue-600 text-white flex items-center justify-center mx-auto mb-1.5 shadow-sm">
-                <Scale size={20} />
+              <div className="w-10 h-10 rounded-xl overflow-hidden mx-auto mb-1.5 shadow-sm border border-slate-200/90 dark:border-slate-700/90 bg-[#071228] p-0.5 flex items-center justify-center">
+                <img 
+                  src="/nyayvault-icon.png" 
+                  alt="NyayVault" 
+                  className="w-full h-full object-cover rounded-lg" 
+                />
               </div>
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">NyayVault</h2>
               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 tracking-wider uppercase">
