@@ -242,11 +242,11 @@ export default function ReportsHub({ currentUser }) {
       {/* Top Banner */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-md border border-slate-200 dark:border-slate-700 bg-[#071228] p-1 shrink-0 hidden sm:flex items-center justify-center">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-50 p-1.5 shrink-0 hidden sm:flex items-center justify-center">
             <img 
               src="/nyayvault-icon.png" 
               alt="NyayVault" 
-              className="w-full h-full object-cover rounded-xl" 
+              className="w-full h-full object-contain" 
             />
           </div>
           <div>

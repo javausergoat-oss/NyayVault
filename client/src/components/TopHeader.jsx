@@ -134,11 +134,11 @@ export default function TopHeader({
         </button>
 
         <div className="lg:hidden flex items-center mr-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-lg overflow-hidden shadow-xs border border-slate-200 dark:border-slate-700 bg-[#071228] p-0.5 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-50 p-1 flex items-center justify-center">
             <img 
               src="/nyayvault-icon.png" 
               alt="NyayVault" 
-              className="w-full h-full object-cover rounded-md" 
+              className="w-full h-full object-contain" 
             />
           </div>
         </div>

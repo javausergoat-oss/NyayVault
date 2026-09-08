@@ -15,11 +15,11 @@ export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, cur
           className="flex items-center gap-3 cursor-pointer group"
           onClick={() => onCaseSelect(null)}
         >
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md shadow-blue-500/20 group-hover:shadow-blue-500/40 border border-slate-200 dark:border-slate-700 bg-[#071228] p-0.5 flex items-center justify-center shrink-0 transition-all">
+          <div className="w-11 h-11 rounded-2xl overflow-hidden shadow-sm shadow-blue-500/10 group-hover:shadow-blue-500/20 border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-50 p-1 flex items-center justify-center shrink-0 transition-all">
             <img 
               src="/nyayvault-icon.png" 
               alt="NyayVault" 
-              className="w-full h-full object-cover rounded-lg" 
+              className="w-full h-full object-contain" 
             />
           </div>
           <div>

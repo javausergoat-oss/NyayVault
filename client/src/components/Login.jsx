@@ -90,11 +90,11 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
           <div className="h-10 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block" />
 
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-xl overflow-hidden shadow-xs border border-slate-200/90 dark:border-slate-700/90 bg-[#071228] p-0.5 shrink-0 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-xl overflow-hidden shadow-sm border border-slate-200/90 dark:border-slate-700/90 bg-white dark:bg-slate-50 p-1 shrink-0 flex items-center justify-center">
               <img 
                 src="/nyayvault-icon.png" 
                 alt="NyayVault Emblem" 
-                className="w-full h-full object-cover rounded-lg" 
+                className="w-full h-full object-contain" 
               />
             </div>
             <div>
@@ -208,11 +208,11 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
           >
             {/* Top: Header Badge & Title */}
             <div className="text-center shrink-0 mb-2">
-              <div className="w-10 h-10 rounded-xl overflow-hidden mx-auto mb-1.5 shadow-sm border border-slate-200/90 dark:border-slate-700/90 bg-[#071228] p-0.5 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl overflow-hidden mx-auto mb-2 shadow-sm border border-slate-200/90 dark:border-slate-700/90 bg-white dark:bg-slate-50 p-1 flex items-center justify-center">
                 <img 
                   src="/nyayvault-icon.png" 
                   alt="NyayVault" 
-                  className="w-full h-full object-cover rounded-lg" 
+                  className="w-full h-full object-contain" 
                 />
               </div>
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">NyayVault</h2>
