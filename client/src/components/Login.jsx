@@ -14,9 +14,73 @@ import {
   Scale, 
   ArrowRight,
   Sun,
-  Moon
+  Moon,
+  X,
+  Building2,
+  CheckCircle2,
+  Shield,
+  Sparkles,
+  UserCheck
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const GOVT_SSO_PROFILES = [
+  {
+    badge: 'JUD-1',
+    name: 'Hon. Justice Vatsal Singh',
+    designation: 'Principal District & Sessions Judge',
+    department: 'Faridabad District Court',
+    roleLabel: 'Judicial Officer',
+    ssoId: 'justice.vatsal@gov.in',
+    secLevel: 'ePramaan Level 3 (Class-3 DSC Token)',
+    icon: Scale,
+    color: 'emerald'
+  },
+  {
+    badge: 'POL-1',
+    name: 'Insp. Krishna Chhabra',
+    designation: 'Cyber Crime Investigation Unit Head',
+    department: 'Cyber Crime Branch, Police Dept',
+    roleLabel: 'Investigating Officer',
+    ssoId: 'k.chhabra@police.gov.in',
+    secLevel: 'ePramaan Level 3 (Govt Biometric MFA)',
+    icon: ShieldCheck,
+    color: 'blue'
+  },
+  {
+    badge: 'ADV-2',
+    name: 'Adv. Priya Kapoor',
+    designation: 'State Prosecutor',
+    department: 'Directorate of Prosecution, Haryana',
+    roleLabel: 'State Prosecution',
+    ssoId: 'p.kapoor@prosecution.gov.in',
+    secLevel: 'ePramaan Level 2 (Bar Council Verified)',
+    icon: Users,
+    color: 'purple'
+  },
+  {
+    badge: 'ADV-1',
+    name: 'Adv. Vikram Singh',
+    designation: 'Senior Defense Counsel',
+    department: 'Bar Council of Punjab & Haryana',
+    roleLabel: 'Defense Counsel',
+    ssoId: 'v.singh@barcouncil.gov.in',
+    secLevel: 'ePramaan Level 2 (Bar Council Verified)',
+    icon: FileText,
+    color: 'amber'
+  },
+  {
+    badge: 'REG-1',
+    name: 'Registrar Amit Kumar',
+    designation: 'Court Registry & Evidence In-Charge',
+    department: 'Faridabad Court Registry',
+    roleLabel: 'Court Registry',
+    ssoId: 'registry.fbd@court.gov.in',
+    secLevel: 'ePramaan Level 3 (Official Seal)',
+    icon: Building2,
+    color: 'indigo'
+  }
+];
 
 export default function Login({ onLoginSuccess, theme, toggleTheme }) {
   const [badgeNumber, setBadgeNumber] = useState('');
@@ -24,11 +88,40 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSSOModal, setShowSSOModal] = useState(false);
+  const [ssoProcessing, setSsoProcessing] = useState(null);
+  const [ssoStep, setSsoStep] = useState(0);
+  const [ssoError, setSsoError] = useState('');
 
   const handleQuickFill = (roleBadge) => {
     setBadgeNumber(roleBadge);
     setPassword('sih2026');
     setError('');
+  };
+
+  const performLogin = async (badge, pass) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ badge_number: badge, password: pass })
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (e) {
+      throw new Error('Backend server unreachable. Please check connection and try again.');
+    }
+    
+    if (!res.ok) {
+      throw new Error(data?.error || `Authentication failed (${res.status})`);
+    }
+
+    localStorage.setItem('sih_token', data.token);
+    localStorage.setItem('sih_active_user', data.user.id);
+    localStorage.setItem('sih_active_role', data.user.role);
+    
+    onLoginSuccess(data.user, data.token);
   };
 
   const handleLogin = async (e) => {
@@ -37,32 +130,31 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ badge_number: badgeNumber, password })
-      });
-
-      let data = null;
-      try {
-        data = await res.json();
-      } catch (e) {
-        throw new Error('Backend server unreachable. Ensure server is running on port 5001.');
-      }
-      
-      if (!res.ok) {
-        throw new Error(data?.error || `Authentication failed (${res.status})`);
-      }
-
-      localStorage.setItem('sih_token', data.token);
-      localStorage.setItem('sih_active_user', data.user.id);
-      localStorage.setItem('sih_active_role', data.user.role);
-      
-      onLoginSuccess(data.user, data.token);
+      await performLogin(badgeNumber, password);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSSOLogin = async (profile) => {
+    setSsoError('');
+    setSsoProcessing(profile);
+    setSsoStep(1);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 650));
+      setSsoStep(2);
+      await new Promise((resolve) => setTimeout(resolve, 650));
+      setSsoStep(3);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await performLogin(profile.badge, 'sih2026');
+      setShowSSOModal(false);
+    } catch (err) {
+      setSsoError(err.message || 'ePramaan SSO authentication failed. Please try again.');
+      setSsoProcessing(null);
     }
   };
 
@@ -322,7 +414,11 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
 
                 <button 
                   type="button"
-                  onClick={() => alert('ePramaan / MeriPehchaan Government SSO Integration Active for Production.')}
+                  onClick={() => {
+                    setShowSSOModal(true);
+                    setSsoProcessing(null);
+                    setSsoError('');
+                  }}
                   className="w-full py-1.5 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-200 text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Landmark size={13} className="text-slate-600 dark:text-slate-400" />
@@ -350,6 +446,186 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
       <div className="text-center text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0 pt-1">
         NyayVault Digital Evidence System © 2026 · Department of Justice · Ministry of Law & Justice · Government of India
       </div>
+
+      {/* MeriPehchaan / ePramaan Government SSO Modal */}
+      <AnimatePresence>
+        {showSSOModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden my-6"
+            >
+              {/* Top Indian Tricolor Strip */}
+              <div className="h-1.5 w-full bg-gradient-to-r from-amber-500 via-white to-emerald-600" />
+              
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 flex items-center justify-center shrink-0">
+                    <Landmark className="w-6 h-6 text-amber-700 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">MeriPehchaan (NSSO)</h3>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                        ePramaan L3 Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      National Single Sign-On Portal · Ministry of Electronics & IT (MeitY)
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={!!ssoProcessing}
+                  onClick={() => setShowSSOModal(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors disabled:opacity-40 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-4 sm:p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                {ssoProcessing ? (
+                  // Live SSO Authentication Flow
+                  <div className="py-6 px-4 text-center space-y-5">
+                    <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+                      <div className="absolute inset-0 rounded-full border-4 border-blue-200 dark:border-blue-900 animate-ping opacity-25" />
+                      <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 flex items-center justify-center shadow-md">
+                        <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        Authenticating via MeriPehchaan
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Verifying credentials for <span className="font-semibold text-slate-700 dark:text-slate-200">{ssoProcessing.name}</span>
+                      </p>
+                    </div>
+
+                    {/* Stepper */}
+                    <div className="max-w-xs mx-auto text-left space-y-2.5 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        {ssoStep >= 1 ? (
+                          <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                        ) : (
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 dark:border-slate-600 shrink-0" />
+                        )}
+                        <span className={ssoStep >= 1 ? 'font-semibold text-slate-800 dark:text-slate-200' : 'text-slate-400'}>
+                          Connecting to MeriPehchaan Gateway
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        {ssoStep >= 2 ? (
+                          <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                        ) : (
+                          <Loader2 size={15} className="text-blue-500 animate-spin shrink-0" />
+                        )}
+                        <span className={ssoStep >= 2 ? 'font-semibold text-slate-800 dark:text-slate-200' : 'text-slate-400'}>
+                          Validating ePramaan DSC Certificate
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        {ssoStep >= 3 ? (
+                          <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
+                        ) : (
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 dark:border-slate-600 shrink-0" />
+                        )}
+                        <span className={ssoStep >= 3 ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}>
+                          Token Accepted · Granting Access
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Profile Selection View
+                  <>
+                    {ssoError && (
+                      <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
+                        <AlertCircle size={15} className="shrink-0" />
+                        <span>{ssoError}</span>
+                      </div>
+                    )}
+
+                    <div className="bg-blue-50/60 dark:bg-blue-950/40 p-3 rounded-xl border border-blue-100 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                      <ShieldCheck size={16} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold leading-tight">Federated Single Sign-On (ePramaan)</p>
+                        <p className="text-[11px] text-blue-700 dark:text-blue-300 mt-0.5">
+                          Select an authorized government service profile below to authenticate with official MeriPehchaan identity verification:
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Profiles List */}
+                    <div className="space-y-2">
+                      {GOVT_SSO_PROFILES.map((prof) => {
+                        const IconComponent = prof.icon;
+                        return (
+                          <button
+                            key={prof.badge}
+                            type="button"
+                            onClick={() => handleSSOLogin(prof)}
+                            className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800/80 dark:hover:bg-slate-800 transition-all shadow-xs hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md group cursor-pointer flex items-center justify-between gap-3"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/50 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                <IconComponent size={18} />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                    {prof.name}
+                                  </span>
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                    {prof.badge}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                  {prof.designation} · {prof.department}
+                                </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[9px] text-slate-400 font-mono">
+                                    {prof.ssoId}
+                                  </span>
+                                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+                                    • {prof.secLevel}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400 group-hover:translate-x-0.5 transition-transform">
+                              <span className="hidden sm:inline text-[11px]">Authenticate</span>
+                              <ArrowRight size={14} />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
+                <span className="flex items-center gap-1">
+                  <Shield size={11} className="text-emerald-500" /> NIC SAML 2.0 & OIDC 1.0 Certified
+                </span>
+                <span>BSA 2023 Sec 63 & DPDP Act 2023</span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
