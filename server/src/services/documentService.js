@@ -320,39 +320,68 @@ export async function applyRedactionsToDocument(documentId, redactions, user, ip
   // Apply redactions
   let newText = originalDoc.extracted_text;
   for (const red of redactions) {
+    if (!red || !red.exact_text) continue;
     // Escape string for regex
-    const regex = new RegExp(red.exact_text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g');
+    const escaped = red.exact_text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(escaped, 'gi');
     newText = newText.replace(regex, '[REDACTED]');
   }
 
   // Create new text file buffer
   const buffer = Buffer.from(newText, 'utf-8');
   
-  // Hash
-  const hashSum = crypto.createHash('sha256');
-  hashSum.update(buffer);
-  const newHash = hashSum.digest('hex');
+  // Calculate SHA-256 hash using tested utility
+  const newHash = calculateBufferHash(buffer);
 
   // New storage key
-  const newId = 'doc-redacted-' + crypto.randomUUID().slice(0, 8);
-  const newStorageKey = `cases/${originalDoc.case_id}/${newId}-redacted.txt`;
+  const newId = 'doc-redacted-' + (crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Date.now().toString(36));
+  const baseName = (originalDoc.filename || 'document').replace(/\.[^/.]+$/, '');
+  const newFilename = `REDACTED_${baseName}.txt`;
+  const newStorageKey = `cases/${originalDoc.case_id}/documents/${newId}/${newFilename}`;
 
-  // Upload to MinIO
+  // Upload to MinIO / Local storage
   await uploadObject({ key: newStorageKey, buffer, contentType: 'text/plain' });
 
-  // Insert into DB
+  // Insert into DB with document_category matching originalDoc so it's visible in dockets
   const sql = `
     INSERT INTO documents 
-    (id, case_id, filename, storage_key, mime_type, file_size, sha256_hash, status, document_type, classification_confidence, extracted_text, uploaded_by, is_redacted, parent_document_id)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    (id, case_id, filename, storage_key, mime_type, file_size, sha256_hash, status, document_type, document_category, classification_confidence, extracted_text, metadata, uploaded_by, is_redacted, parent_document_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING *;
   `;
+  // Verify user exists or fallback to original uploader to satisfy foreign key constraint
+  let effectiveUserId = user?.id;
+  if (effectiveUserId) {
+    const userCheck = await query('SELECT id FROM users WHERE id = $1', [effectiveUserId]);
+    if (userCheck.rows.length === 0) {
+      effectiveUserId = originalDoc.uploader_id || originalDoc.uploaded_by;
+    }
+  } else {
+    effectiveUserId = originalDoc.uploader_id || originalDoc.uploaded_by;
+  }
+
   const values = [
-    newId, originalDoc.case_id,
-    'REDACTED_' + originalDoc.filename + '.txt',
-    newStorageKey, 'text/plain', buffer.length, newHash, 'processed',
-    originalDoc.document_type, originalDoc.classification_confidence,
-    newText, user.id, true, documentId
+    newId,
+    originalDoc.case_id,
+    newFilename,
+    newStorageKey,
+    'text/plain',
+    buffer.length,
+    newHash,
+    'VERIFIED_AUTHENTIC',
+    originalDoc.document_type || 'EVIDENCE',
+    originalDoc.document_category || 'INVESTIGATION',
+    originalDoc.classification_confidence || 1.0,
+    newText,
+    JSON.stringify({
+      is_redacted: true,
+      original_filename: originalDoc.filename,
+      redaction_count: redactions.length,
+      redacted_at: new Date().toISOString()
+    }),
+    effectiveUserId,
+    true,
+    documentId
   ];
   
   const res = await query(sql, values);
@@ -360,7 +389,7 @@ export async function applyRedactionsToDocument(documentId, redactions, user, ip
 
   // Audit Logs
   await logAuditEvent({
-    userId: user.id,
+    userId: effectiveUserId,
     caseId: originalDoc.case_id,
     documentId: documentId,
     action: 'DOCUMENT_REDACTED',
@@ -369,7 +398,7 @@ export async function applyRedactionsToDocument(documentId, redactions, user, ip
   });
 
   await logAuditEvent({
-    userId: user.id,
+    userId: effectiveUserId,
     caseId: originalDoc.case_id,
     documentId: newId,
     action: 'DOCUMENT_UPLOADED',

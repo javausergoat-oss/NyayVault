@@ -661,6 +661,16 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                     <FileSignature size={14} />
                     <span>Download Sec 63 BSA</span>
                   </button>
+                  {!selectedDoc.is_redacted && (
+                    <button 
+                      onClick={() => setRedactingDoc(selectedDoc)}
+                      className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                      title="Redact sensitive PII and generate electronic copy"
+                    >
+                      <ShieldAlert size={14} />
+                      <span>Redact PII</span>
+                    </button>
+                  )}
                   <button 
                     onClick={() => setSelectedDoc(null)} 
                     className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-500 dark:text-slate-400"

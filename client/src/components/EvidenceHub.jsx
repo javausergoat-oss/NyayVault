@@ -596,6 +596,22 @@ export default function EvidenceHub({ onSelectCase }) {
                           <span>{t('Sec 63 Cert')}</span>
                         </button>
 
+                        {/* Redact Action */}
+                        {!doc.is_redacted && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRedactingDoc(doc);
+                            }}
+                            title="Redact sensitive PII"
+                            className="px-2.5 py-1 rounded-xl text-xs font-semibold border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors inline-flex items-center gap-1 shadow-xs cursor-pointer"
+                          >
+                            <ShieldAlert size={12} />
+                            <span>{t('Redact')}</span>
+                          </button>
+                        )}
+
                         {/* Inspect & Intel */}
                         <button
                           type="button"
@@ -686,14 +702,30 @@ export default function EvidenceHub({ onSelectCase }) {
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={(e) => handleGenerateBSA(doc, e)}
-                    className="px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors flex items-center gap-1"
-                  >
-                    <FileSignature size={13} />
-                    <span>{t('Sec 63 Cert')}</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => handleGenerateBSA(doc, e)}
+                      className="px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors flex items-center gap-1"
+                    >
+                      <FileSignature size={13} />
+                      <span>{t('Sec 63 Cert')}</span>
+                    </button>
+                    {!doc.is_redacted && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRedactingDoc(doc);
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="Redact sensitive PII"
+                      >
+                        <ShieldAlert size={13} />
+                        <span>{t('Redact')}</span>
+                      </button>
+                    )}
+                  </div>
 
                   <button
                     type="button"
@@ -798,6 +830,16 @@ export default function EvidenceHub({ onSelectCase }) {
                     <FileSignature size={18} />
                   </button>
 
+                  {!selectedDoc.is_redacted && (
+                    <button
+                      onClick={() => setRedactingDoc(selectedDoc)}
+                      className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      title="Redact sensitive PII and generate electronic copy"
+                    >
+                      <ShieldAlert size={18} />
+                    </button>
+                  )}
+
                   <button 
                     onClick={() => setSelectedDoc(null)}
                     className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
@@ -872,9 +914,14 @@ export default function EvidenceHub({ onSelectCase }) {
       {/* Redaction Modal */}
       {redactingDoc && (
         <RedactionModal
+          doc={redactingDoc}
           document={redactingDoc}
           onClose={() => setRedactingDoc(null)}
           onRedacted={() => {
+            setRedactingDoc(null);
+            loadDocuments();
+          }}
+          onComplete={() => {
             setRedactingDoc(null);
             loadDocuments();
           }}
