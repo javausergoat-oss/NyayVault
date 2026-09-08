@@ -86,7 +86,8 @@ export default function DocumentTable({ documents = [], onRefresh }) {
   const [inspectorMode, setInspectorMode] = useState('split'); // 'split', 'preview', 'transcript'
   const [loadingDoc, setLoadingDoc] = useState(null);
   const [redactingDoc, setRedactingDoc] = useState(null);
-  const [tamperLoading, setTamperLoading] = useState(false);
+  const [tamperActionLoading, setTamperActionLoading] = useState(false);
+  const [verifyActionLoading, setVerifyActionLoading] = useState(false);
   const [tamperState, setTamperState] = useState(null); // { isTampered: boolean, message: string }
   const [liveCheckResult, setLiveCheckResult] = useState(null);
 
@@ -187,7 +188,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
   };
 
   const handleSimulateTamper = async (docId) => {
-    setTamperLoading(true);
+    setTamperActionLoading(true);
     try {
       const res = await simulateTamper(docId);
       setTamperState({ isTampered: true, message: res.message });
@@ -199,12 +200,12 @@ export default function DocumentTable({ documents = [], onRefresh }) {
     } catch (err) {
       alert('Tamper Simulation Error: ' + err.message);
     } finally {
-      setTamperLoading(false);
+      setTamperActionLoading(false);
     }
   };
 
   const handleRestoreTamper = async (docId) => {
-    setTamperLoading(true);
+    setTamperActionLoading(true);
     try {
       const res = await restoreTamper(docId);
       setTamperState({ isTampered: false, message: res.message });
@@ -216,12 +217,12 @@ export default function DocumentTable({ documents = [], onRefresh }) {
     } catch (err) {
       alert('Restore Error: ' + err.message);
     } finally {
-      setTamperLoading(false);
+      setTamperActionLoading(false);
     }
   };
 
   const handleRunInspectorVerify = async (docId) => {
-    setTamperLoading(true);
+    setVerifyActionLoading(true);
     try {
       const res = await verifyDocument(docId);
       setVerifyResult(prev => ({ ...prev, [docId]: res.verification }));
@@ -230,7 +231,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
     } catch (err) {
       alert('Verification Error: ' + err.message);
     } finally {
-      setTamperLoading(false);
+      setVerifyActionLoading(false);
     }
   };
 
@@ -875,25 +876,25 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                                 </p>
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
                                 {!isTamperDetected ? (
                                   <button
                                     type="button"
                                     onClick={() => handleSimulateTamper(selectedDoc.id)}
-                                    disabled={tamperLoading}
+                                    disabled={tamperActionLoading || verifyActionLoading}
                                     className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                                   >
-                                    {tamperLoading ? <Loader2 size={14} className="animate-spin" /> : <Flame size={14} />}
+                                    {tamperActionLoading ? <Loader2 size={14} className="animate-spin" /> : <Flame size={14} />}
                                     <span>Simulate Tamper (1-Byte Mutation)</span>
                                   </button>
                                 ) : (
                                   <button
                                     type="button"
                                     onClick={() => handleRestoreTamper(selectedDoc.id)}
-                                    disabled={tamperLoading}
+                                    disabled={tamperActionLoading || verifyActionLoading}
                                     className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-emerald-500/60 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                                   >
-                                    {tamperLoading ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                                    {tamperActionLoading ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
                                     <span>Restore Authentic Exhibit</span>
                                   </button>
                                 )}
@@ -901,10 +902,10 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                                 <button
                                   type="button"
                                   onClick={() => handleRunInspectorVerify(selectedDoc.id)}
-                                  disabled={tamperLoading}
+                                  disabled={tamperActionLoading || verifyActionLoading}
                                   className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
                                 >
-                                  {tamperLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                                  {verifyActionLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
                                   <span>Verify Live SHA-256</span>
                                 </button>
                               </div>
