@@ -185,13 +185,7 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
           <div className="h-10 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block" />
 
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl overflow-hidden shadow-sm border border-slate-200/90 dark:border-slate-700/90 bg-white dark:bg-slate-50 p-1 shrink-0 flex items-center justify-center">
-              <img 
-                src="/nyayvault-icon.png" 
-                alt="NyayVault Emblem" 
-                className="w-full h-full object-contain" 
-              />
-            </div>
+            <img src="/logo.png" alt="NyayVault Logo" className="h-10 w-10 sm:h-12 sm:w-12 object-contain rounded-full shadow-md shrink-0" />
             <div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
                 Nyay<span className="text-blue-600 dark:text-blue-500">Vault</span>
@@ -303,13 +297,7 @@ export default function Login({ onLoginSuccess, theme, toggleTheme }) {
           >
             {/* Top: Header Badge & Title */}
             <div className="text-center shrink-0 mb-2">
-              <div className="w-12 h-12 rounded-2xl overflow-hidden mx-auto mb-2 shadow-sm border border-slate-200/90 dark:border-slate-700/90 bg-white dark:bg-slate-50 p-1 flex items-center justify-center">
-                <img 
-                  src="/nyayvault-icon.png" 
-                  alt="NyayVault" 
-                  className="w-full h-full object-contain" 
-                />
-              </div>
+              <img src="/logo.png" alt="NyayVault Logo" className="w-12 h-12 object-contain rounded-full mx-auto mb-1.5 drop-shadow-md" />
               <h2 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">NyayVault</h2>
               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-400 tracking-wider uppercase">
                 SECURE EVIDENCE PORTAL
