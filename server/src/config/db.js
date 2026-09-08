@@ -51,8 +51,9 @@ export async function initDatabase() {
     const dataDir = path.resolve(__dirname, '../../../data/pglite');
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
-    } else {
-      // Clean up stale lock files from previous unclean shutdowns
+    }
+
+    const cleanLocks = () => {
       try {
         const pidFile = path.resolve(dataDir, 'postmaster.pid');
         if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile);
@@ -61,24 +62,37 @@ export async function initDatabase() {
       } catch (e) {
         console.warn('Could not remove stale lock files:', e.message);
       }
-    }
+    };
+
+    cleanLocks();
     
+    let hasVector = false;
     try {
       try {
         const { vector } = await import('@electric-sql/pglite/vector');
         pgliteInstance = new PGlite({ dataDir, extensions: { vector } });
         await pgliteInstance.query('SELECT 1');
+        hasVector = true;
       } catch (extErr) {
         console.warn('PGlite vector extension unavailable, using standard PGlite engine:', extErr.message);
+        cleanLocks();
         pgliteInstance = new PGlite({ dataDir });
         await pgliteInstance.query('SELECT 1');
       }
     } catch (pglErr) {
       console.warn('PGlite dataDir initialization error, using in-memory PGlite instance:', pglErr.message);
+      cleanLocks();
       pgliteInstance = new PGlite();
       await pgliteInstance.query('SELECT 1');
     }
-    await pgliteInstance.exec(schemaSql);
+
+    let executableSchemaSql = schemaSql;
+    if (!hasVector) {
+      executableSchemaSql = executableSchemaSql
+        .replace(/CREATE EXTENSION IF NOT EXISTS vector;/gi, '-- CREATE EXTENSION IF NOT EXISTS vector;')
+        .replace(/vector\(1536\)/gi, 'TEXT');
+    }
+    await pgliteInstance.exec(executableSchemaSql);
 
     // Auto-apply non-breaking column migrations
     await pgliteInstance.exec(`

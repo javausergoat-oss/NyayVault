@@ -138,4 +138,38 @@ router.post('/restore/:documentId', async (req, res) => {
   }
 });
 
+router.post('/clean-redacted-duplicates', async (req, res) => {
+  try {
+    const listRes = await query("SELECT id, filename, uploaded_at FROM documents WHERE filename LIKE '%REDACTED%' ORDER BY uploaded_at ASC");
+    const docs = listRes.rows;
+    const seen = new Map();
+    const toDelete = [];
+
+    for (let i = docs.length - 1; i >= 0; i--) {
+      const doc = docs[i];
+      if (seen.has(doc.filename)) {
+        toDelete.push(doc.id);
+      } else {
+        seen.set(doc.filename, doc.id);
+      }
+    }
+
+    for (const id of toDelete) {
+      await query("DELETE FROM audit_logs WHERE document_id = $1", [id]);
+      await query("DELETE FROM document_chunks WHERE document_id = $1", [id]);
+      await query("DELETE FROM documents WHERE id = $1", [id]);
+    }
+
+    res.json({
+      success: true,
+      deletedCount: toDelete.length,
+      deletedIds: toDelete,
+      message: `Cleaned ${toDelete.length} duplicate redacted copies.`,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 export default router;
+
