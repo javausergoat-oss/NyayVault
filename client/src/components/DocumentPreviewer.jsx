@@ -216,14 +216,14 @@ export default function DocumentPreviewer({
   return (
     <div className="flex flex-col h-full bg-slate-900/5 dark:bg-slate-950/40 select-none">
       {/* Exhibit Sub-header Controls */}
-      <div className="px-4 py-2 bg-slate-100/80 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
-        <div className="flex items-center gap-2">
+      <div className="px-3 py-2 bg-slate-100/80 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 overflow-x-auto scrollbar-none text-xs text-slate-600 dark:text-slate-400 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {isPdf && <FileText size={15} className="text-rose-500" />}
           {isImage && <ImageIcon size={15} className="text-blue-500" />}
           {isVideo && <Film size={15} className="text-purple-500" />}
           {isAudio && <Volume2 size={15} className="text-emerald-500" />}
           {isText && <FileCode size={15} className="text-amber-500" />}
-          <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[200px] sm:max-w-xs">
+          <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px] sm:max-w-xs">
             {filename}
           </span>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold uppercase">
@@ -231,7 +231,7 @@ export default function DocumentPreviewer({
           </span>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           {/* Zoom controls for Images */}
           {isImage && (
             <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 mr-2">
@@ -303,7 +303,7 @@ export default function DocumentPreviewer({
           </button>
 
           {/* Tamper Simulation Demo Tool */}
-          <div className="flex items-center gap-1 border-l border-slate-300 dark:border-slate-700 pl-2 ml-1 overflow-hidden">
+          <div className="flex items-center gap-1 border-l border-slate-300 dark:border-slate-700 pl-2 ml-1 flex-nowrap shrink-0">
             {!tamperState?.isTampered ? (
               <button
                 type="button"
@@ -356,6 +356,49 @@ export default function DocumentPreviewer({
           </a>
         </div>
       </div>
+
+      {/* Live Verification / Tamper Banners (Prominently at the Top) */}
+      {(signedInfo || liveCheckResult || tamperState) && (
+        <div className="p-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 space-y-2 z-10">
+          {signedInfo && (
+            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs text-emerald-900 dark:text-emerald-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <span className="font-bold">Digitally Signed (RSA-2048 / SHA-256):</span>
+                <span className="font-mono text-[11px] opacity-80">{signedInfo.signedBy} ({signedInfo.badgeNumber})</span>
+              </div>
+              <span className="font-mono text-[10px] bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded font-bold">
+                Key Fingerprint: {signedInfo.keyFingerprint}
+              </span>
+            </div>
+          )}
+
+          {liveCheckResult && (
+            <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-bold ${
+              liveCheckResult.isTamperFree 
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800' 
+                : 'bg-rose-50 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={18} className={liveCheckResult.isTamperFree ? 'text-emerald-600' : 'text-rose-600 animate-bounce'} />
+                <span>{liveCheckResult.isTamperFree ? 'VERIFIED AUTHENTIC: Live SHA-256 Checksum Matches Vault Fingerprint' : '🚨 TAMPER DETECTED: Storage bytes do not match SHA-256 Checksum!'}</span>
+              </div>
+              <span className="font-mono text-[10px] font-bold">
+                {liveCheckResult.computedHash?.substring(0, 16)}...
+              </span>
+            </div>
+          )}
+
+          {tamperState && !liveCheckResult && (
+            <div className={`p-2 rounded-xl text-xs font-bold flex items-center justify-between ${
+              tamperState.isTampered ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+            }`}>
+              <span>{tamperState.message}</span>
+              <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-white/60 rounded">Demo Action</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Preview Viewport */}
       <div className="flex-1 overflow-auto p-4 flex items-center justify-center relative min-h-[400px]">
@@ -453,49 +496,6 @@ export default function DocumentPreviewer({
           </div>
         )}
       </div>
-
-      {/* Live Verification / Tamper Banners */}
-      {(signedInfo || liveCheckResult || tamperState) && (
-        <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 space-y-2">
-          {signedInfo && (
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs text-emerald-900 dark:text-emerald-200">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
-                <span className="font-bold">Digitally Signed (RSA-2048 / SHA-256):</span>
-                <span className="font-mono text-[11px] opacity-80">{signedInfo.signedBy} ({signedInfo.badgeNumber})</span>
-              </div>
-              <span className="font-mono text-[10px] bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded font-bold">
-                Key Fingerprint: {signedInfo.keyFingerprint}
-              </span>
-            </div>
-          )}
-
-          {liveCheckResult && (
-            <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-bold ${
-              liveCheckResult.isTamperFree 
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-200 dark:border-emerald-800' 
-                : 'bg-rose-50 text-rose-900 border-rose-300 dark:bg-rose-950/50 dark:text-rose-200 dark:border-rose-800'
-            }`}>
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className={liveCheckResult.isTamperFree ? 'text-emerald-600' : 'text-rose-600 animate-bounce'} />
-                <span>{liveCheckResult.isTamperFree ? 'VERIFIED AUTHENTIC: Live SHA-256 Checksum Matches Vault Fingerprint' : '🚨 TAMPER DETECTED: Storage bytes do not match SHA-256 Checksum!'}</span>
-              </div>
-              <span className="font-mono text-[10px] font-bold">
-                {liveCheckResult.computedHash.substring(0, 16)}...
-              </span>
-            </div>
-          )}
-
-          {tamperState && !liveCheckResult && (
-            <div className={`p-2 rounded-xl text-xs font-bold flex items-center justify-between ${
-              tamperState.isTampered ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-            }`}>
-              <span>{tamperState.message}</span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-white/60 rounded">Demo Action</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* BSA 2023 Section 63 Electronic Evidence Certificate Modal */}
       {certModal && (

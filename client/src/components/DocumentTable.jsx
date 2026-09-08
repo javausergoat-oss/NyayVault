@@ -25,10 +25,13 @@ import {
   FileCode,
   FileSpreadsheet,
   FileCheck,
-  Columns
+  Columns,
+  Flame,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import jsPDF from 'jspdf';
-import { verifyDocument, getDownloadUrl } from '../services/api';
+import { verifyDocument, getDownloadUrl, simulateTamper, restoreTamper } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import RedactionModal from './RedactionModal';
 import DocumentPreviewer from './DocumentPreviewer';
@@ -83,6 +86,9 @@ export default function DocumentTable({ documents = [], onRefresh }) {
   const [inspectorMode, setInspectorMode] = useState('split'); // 'split', 'preview', 'transcript'
   const [loadingDoc, setLoadingDoc] = useState(null);
   const [redactingDoc, setRedactingDoc] = useState(null);
+  const [tamperLoading, setTamperLoading] = useState(false);
+  const [tamperState, setTamperState] = useState(null); // { isTampered: boolean, message: string }
+  const [liveCheckResult, setLiveCheckResult] = useState(null);
 
   // Close modal on Escape
   useEffect(() => {
@@ -155,6 +161,8 @@ export default function DocumentTable({ documents = [], onRefresh }) {
       });
       const fullDoc = await res.json();
       setSelectedDoc(fullDoc.document);
+      setTamperState(null);
+      setLiveCheckResult(verifyResult[doc.id] || null);
       setViewerTab('entities'); // Default to Forensic Intelligence on inspector open
     } catch (err) {
       console.error("Failed to load viewer:", err);
@@ -169,11 +177,60 @@ export default function DocumentTable({ documents = [], onRefresh }) {
     try {
       const res = await verifyDocument(docId);
       setVerifyResult(prev => ({ ...prev, [docId]: res.verification }));
+      setLiveCheckResult(res.verification);
     } catch (err) {
       alert('Verification failed: ' + err.message);
     } finally {
       setVerifying(prev => ({ ...prev, [docId]: false }));
       if (onRefresh) onRefresh();
+    }
+  };
+
+  const handleSimulateTamper = async (docId) => {
+    setTamperLoading(true);
+    try {
+      const res = await simulateTamper(docId);
+      setTamperState({ isTampered: true, message: res.message });
+      // Re-run verify to compute live mutated hash
+      const vRes = await verifyDocument(docId);
+      setVerifyResult(prev => ({ ...prev, [docId]: vRes.verification }));
+      setLiveCheckResult(vRes.verification);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Tamper Simulation Error: ' + err.message);
+    } finally {
+      setTamperLoading(false);
+    }
+  };
+
+  const handleRestoreTamper = async (docId) => {
+    setTamperLoading(true);
+    try {
+      const res = await restoreTamper(docId);
+      setTamperState({ isTampered: false, message: res.message });
+      // Re-run verify to show it is now authentic
+      const vRes = await verifyDocument(docId);
+      setVerifyResult(prev => ({ ...prev, [docId]: vRes.verification }));
+      setLiveCheckResult(vRes.verification);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Restore Error: ' + err.message);
+    } finally {
+      setTamperLoading(false);
+    }
+  };
+
+  const handleRunInspectorVerify = async (docId) => {
+    setTamperLoading(true);
+    try {
+      const res = await verifyDocument(docId);
+      setVerifyResult(prev => ({ ...prev, [docId]: res.verification }));
+      setLiveCheckResult(res.verification);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      alert('Verification Error: ' + err.message);
+    } finally {
+      setTamperLoading(false);
     }
   };
 
@@ -239,6 +296,7 @@ export default function DocumentTable({ documents = [], onRefresh }) {
 
   const userRole = localStorage.getItem('sih_active_role');
   const isPolice = userRole === 'INVESTIGATING_OFFICER' || localStorage.getItem('sih_active_user')?.includes('pol');
+  const isTamperDetected = Boolean((liveCheckResult && !liveCheckResult.isTamperFree) || tamperState?.isTampered);
 
   return (
     <div className="space-y-4">
@@ -639,13 +697,14 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                       />
                     </div>
 
-                    {/* Right 6 Cols: OCR Transcript & Forensic Entities */}
+                    {/* Right 6 Cols: OCR Transcript & Forensic Entities & Tamper Detection */}
                     <div className="lg:col-span-6 flex flex-col h-full overflow-y-auto bg-white dark:bg-slate-900">
                       <div className="flex items-center justify-between px-5 py-2.5 bg-slate-100/70 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
                           <button
+                            type="button"
                             onClick={() => setViewerTab('transcript')}
-                            className={`px-3 py-1 rounded-lg transition-colors ${
+                            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer text-xs font-semibold shrink-0 ${
                               viewerTab === 'transcript'
                                 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
                                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -654,8 +713,9 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                             OCR Transcript
                           </button>
                           <button
+                            type="button"
                             onClick={() => setViewerTab('entities')}
-                            className={`px-3 py-1 rounded-lg transition-colors ${
+                            className={`px-3 py-1 rounded-lg transition-colors cursor-pointer text-xs font-semibold shrink-0 ${
                               viewerTab === 'entities'
                                 ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
                                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -663,11 +723,39 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                           >
                             Forensic Intelligence
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewerTab('tamper');
+                              if (!liveCheckResult && selectedDoc) {
+                                handleRunInspectorVerify(selectedDoc.id);
+                              }
+                            }}
+                            className={`px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer text-xs font-semibold shrink-0 ${
+                              viewerTab === 'tamper'
+                                ? (isTamperDetected
+                                    ? 'bg-rose-600 text-white shadow-xs font-bold'
+                                    : 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs font-bold')
+                                : (isTamperDetected
+                                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300 font-bold border border-rose-300 dark:border-rose-800'
+                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200')
+                            }`}
+                          >
+                            {isTamperDetected ? (
+                              <ShieldAlert size={13} className="text-rose-500" />
+                            ) : (
+                              <ShieldCheck size={13} className="text-emerald-500" />
+                            )}
+                            <span>Tamper Detection</span>
+                            {isTamperDetected && (
+                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block" />
+                            )}
+                          </button>
                         </div>
                         {viewerTab === 'transcript' && (
                           <button 
                             onClick={() => handleCopy(selectedDoc.extracted_text || '')}
-                            className="hover:text-blue-600 transition-colors flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs"
+                            className="hover:text-blue-600 transition-colors flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs shrink-0 ml-2 cursor-pointer"
                           >
                             <Copy size={12} />
                             <span>Copy Text</span>
@@ -705,6 +793,156 @@ export default function DocumentTable({ documents = [], onRefresh }) {
                               </p>
                             </div>
                           )
+                        ) : viewerTab === 'tamper' ? (
+                          <div className="space-y-6">
+                            {/* Live Verification Status Card */}
+                            <div className={`p-5 rounded-2xl border transition-all ${
+                              isTamperDetected 
+                                ? 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 shadow-xs'
+                                : liveCheckResult 
+                                  ? 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 shadow-xs'
+                                  : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+                            }`}>
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-2.5">
+                                  {isTamperDetected ? (
+                                    <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                                      <ShieldAlert size={24} className="animate-bounce" />
+                                    </div>
+                                  ) : liveCheckResult ? (
+                                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                                      <ShieldCheck size={24} />
+                                    </div>
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                                      <ShieldCheck size={24} />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <h4 className="text-sm font-bold tracking-tight">
+                                      {isTamperDetected 
+                                        ? '🚨 TAMPER DETECTED: Storage Bytes Mismatched!'
+                                        : liveCheckResult 
+                                          ? 'VERIFIED AUTHENTIC: Cryptographic Checksum Confirmed'
+                                          : 'Evidence Integrity Audit Ready'}
+                                    </h4>
+                                    <p className="text-xs opacity-80 mt-0.5">
+                                      {isTamperDetected 
+                                        ? 'Storage byte stream does NOT match the registered blockchain SHA-256 fingerprint.'
+                                        : liveCheckResult 
+                                          ? 'Raw storage bytes match the ingest SHA-256 hash with zero unauthorized modifications.'
+                                          : 'Run real-time SHA-256 cryptographic audit against AWS S3 / MinIO storage.'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                                  isTamperDetected 
+                                    ? 'bg-rose-600 text-white animate-pulse'
+                                    : liveCheckResult 
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                                }`}>
+                                  {isTamperDetected ? 'TAMPERED' : liveCheckResult ? 'AUTHENTIC' : 'UNVERIFIED'}
+                                </span>
+                              </div>
+
+                              {/* Live Hash Badges */}
+                              <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 grid grid-cols-1 gap-2 font-mono text-[11px]">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 rounded-lg bg-white/70 dark:bg-slate-900/70 border border-slate-200/50 dark:border-slate-800">
+                                  <span className="text-[10px] font-sans font-bold uppercase tracking-wider opacity-70">Ingest Genesis Hash:</span>
+                                  <span className="truncate max-w-xs">{selectedDoc.sha256_hash}</span>
+                                </div>
+                                {liveCheckResult && (
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 rounded-lg bg-white/70 dark:bg-slate-900/70 border border-slate-200/50 dark:border-slate-800">
+                                    <span className="text-[10px] font-sans font-bold uppercase tracking-wider opacity-70">Live Storage Hash:</span>
+                                    <span className={`truncate max-w-xs font-bold ${isTamperDetected ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                      {liveCheckResult.computedHash}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Live Presentation Demo Controls */}
+                            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
+                              <div>
+                                <h5 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                                  Interactive Tamper Simulation (Hackathon Demo)
+                                </h5>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                  Demonstrate real-time cryptographic detection by modifying 1 byte in object storage.
+                                </p>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {!isTamperDetected ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSimulateTamper(selectedDoc.id)}
+                                    disabled={tamperLoading}
+                                    className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                                  >
+                                    {tamperLoading ? <Loader2 size={14} className="animate-spin" /> : <Flame size={14} />}
+                                    <span>Simulate Tamper (1-Byte Mutation)</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRestoreTamper(selectedDoc.id)}
+                                    disabled={tamperLoading}
+                                    className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-emerald-500/60 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                                  >
+                                    {tamperLoading ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                                    <span>Restore Authentic Exhibit</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRunInspectorVerify(selectedDoc.id)}
+                                  disabled={tamperLoading}
+                                  className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                                >
+                                  {tamperLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                                  <span>Verify Live SHA-256</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* BSA 2023 Section 63 Legal Compliance */}
+                            <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 text-xs font-bold uppercase tracking-wider">
+                                  <FileSignature size={16} className="text-blue-600 dark:text-blue-400" />
+                                  <span>BSA 2023 Section 63 Admissibility Verdict</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateBSA(selectedDoc)}
+                                  className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                >
+                                  <Download size={12} />
+                                  <span>Download Cert PDF</span>
+                                </button>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-blue-100 dark:border-blue-900/40">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Admissibility Status</span>
+                                  <span className={`font-bold mt-0.5 block ${isTamperDetected ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                    {isTamperDetected ? 'INADMISSIBLE (Hash Mismatch)' : 'PRIMARY ELECTRONIC RECORD (Admissible)'}
+                                  </span>
+                                </div>
+                                <div className="p-2.5 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-blue-100 dark:border-blue-900/40">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Authorized Signatory</span>
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block truncate">
+                                    {selectedDoc.uploaded_by_name || 'Designated Officer'} ({selectedDoc.uploaded_by_badge || 'POL-1'})
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         ) : (
                           <div className="space-y-6">
                             {/* AI Classification */}
