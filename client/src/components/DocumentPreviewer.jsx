@@ -216,66 +216,69 @@ export default function DocumentPreviewer({
   return (
     <div className="flex flex-col h-full bg-slate-900/5 dark:bg-slate-950/40 select-none">
       {/* Exhibit Sub-header Controls */}
-      <div className="px-3 py-2 bg-slate-100/80 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 overflow-x-auto scrollbar-none text-xs text-slate-600 dark:text-slate-400 shrink-0">
-        <div className="flex items-center gap-2 shrink-0">
-          {isPdf && <FileText size={15} className="text-rose-500" />}
-          {isImage && <ImageIcon size={15} className="text-blue-500" />}
-          {isVideo && <Film size={15} className="text-purple-500" />}
-          {isAudio && <Volume2 size={15} className="text-emerald-500" />}
-          {isText && <FileCode size={15} className="text-amber-500" />}
-          <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px] sm:max-w-xs">
+      <div className="px-2.5 py-1.5 bg-slate-100/80 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-1.5 overflow-x-auto scrollbar-none text-xs text-slate-600 dark:text-slate-400 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 min-w-0">
+          {isPdf && <FileText size={14} className="text-rose-500 shrink-0" />}
+          {isImage && <ImageIcon size={14} className="text-blue-500 shrink-0" />}
+          {isVideo && <Film size={14} className="text-purple-500 shrink-0" />}
+          {isAudio && <Volume2 size={14} className="text-emerald-500 shrink-0" />}
+          {isText && <FileCode size={14} className="text-amber-500 shrink-0" />}
+          <span 
+            className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[90px] xl:max-w-[130px] text-[11px]"
+            title={filename}
+          >
             {filename}
           </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold uppercase">
+          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold uppercase shrink-0">
             {fileData?.blob?.size ? `${(fileData.blob.size / 1024).toFixed(1)} KB` : 'Binary'}
           </span>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           {/* Zoom controls for Images */}
           {isImage && (
-            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 mr-2">
+            <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 mr-1 shrink-0">
               <button 
                 onClick={handleZoomOut} 
                 title="Zoom Out"
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-600 dark:text-slate-300"
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-600 dark:text-slate-300 cursor-pointer"
               >
-                <ZoomOut size={13} />
+                <ZoomOut size={12} />
               </button>
-              <span className="text-[10px] font-mono font-bold px-1.5 text-slate-700 dark:text-slate-300">
+              <span className="text-[9px] font-mono font-bold px-1 text-slate-700 dark:text-slate-300">
                 {Math.round(zoom * 100)}%
               </span>
               <button 
                 onClick={handleZoomIn} 
                 title="Zoom In"
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-600 dark:text-slate-300"
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-600 dark:text-slate-300 cursor-pointer"
               >
-                <ZoomIn size={13} />
+                <ZoomIn size={12} />
               </button>
               <button 
                 onClick={handleResetZoom} 
                 title="Reset Zoom"
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-600 dark:text-slate-300 ml-0.5"
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-600 dark:text-slate-300 cursor-pointer"
               >
-                <RotateCcw size={13} />
+                <RotateCcw size={12} />
               </button>
             </div>
           )}
 
           {/* Speed controls for Video */}
           {isVideo && (
-            <div className="flex items-center gap-1.5 mr-2 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-1 mr-1 bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
               <Gauge size={12} className="text-slate-400" />
               <select 
                 value={playbackRate} 
                 onChange={handleSpeedChange}
-                className="bg-transparent text-[11px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+                className="bg-transparent text-[10px] font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
               >
-                <option value={0.5}>0.5x Speed</option>
-                <option value={1}>1.0x Normal</option>
+                <option value={0.5}>0.5x</option>
+                <option value={1}>1.0x</option>
                 <option value={1.25}>1.25x</option>
                 <option value={1.5}>1.5x</option>
-                <option value={2}>2.0x Fast</option>
+                <option value={2}>2.0x</option>
               </select>
             </div>
           )}
@@ -285,54 +288,55 @@ export default function DocumentPreviewer({
             type="button"
             onClick={handleSignExhibit}
             disabled={signing}
-            className="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            className="whitespace-nowrap shrink-0 px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold flex items-center gap-1 transition-all shadow-2xs cursor-pointer"
             title="Digitally Sign Exhibit with RSA-2048 PKI Key"
           >
-            <Key size={13} className={signing ? 'animate-spin' : ''} />
-            <span className="hidden sm:inline">Sign PKI</span>
+            <Key size={12} className={signing ? 'animate-spin' : ''} />
+            <span>Sign PKI</span>
           </button>
 
           <button
             type="button"
             onClick={handleViewCertificate}
-            className="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-            title="View BSA 2023 Sec 63 Certificate"
+            className="whitespace-nowrap shrink-0 px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold flex items-center gap-1 transition-all shadow-2xs cursor-pointer"
+            title="View Bharatiya Sakshya Adhiniyam 2023 Sec 63 Electronic Certificate"
           >
-            <Award size={13} />
-            <span className="hidden sm:inline">BSA Sec 63 Cert</span>
+            <Award size={12} />
+            <span>BSA Cert</span>
           </button>
 
           {/* Tamper Simulation Demo Tool */}
-          <div className="flex items-center gap-1 border-l border-slate-300 dark:border-slate-700 pl-2 ml-1 flex-nowrap shrink-0">
+          <div className="flex items-center gap-1 border-l border-slate-300 dark:border-slate-700 pl-1.5 ml-0.5 flex-nowrap shrink-0">
             {!tamperState?.isTampered ? (
               <button
                 type="button"
                 onClick={handleSimulateTamper}
-                className="whitespace-nowrap flex-shrink-0 px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                className="whitespace-nowrap shrink-0 px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black flex items-center gap-1 cursor-pointer"
                 title="Hackathon Live Demo: Mutate 1 byte in storage to test alert"
               >
                 <Flame size={12} />
-                <span>Simulate Tamper</span>
+                <span>Simulate</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={handleRestoreTamper}
-                className="whitespace-nowrap flex-shrink-0 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-emerald-500/50"
+                className="whitespace-nowrap shrink-0 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-emerald-500/50"
                 title="Restore original authentic storage blob"
               >
                 <RotateCcw size={12} />
-                <span>Restore Exhibit</span>
+                <span>Restore</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={handleRunLiveCheck}
-              className="whitespace-nowrap flex-shrink-0 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+              className="whitespace-nowrap shrink-0 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+              title="Verify SHA-256 Checksum"
             >
               <ShieldCheck size={12} className="text-emerald-400" />
-              <span className="hidden lg:inline">Verify SHA-256</span>
+              <span>Verify</span>
             </button>
           </div>
 
@@ -341,18 +345,18 @@ export default function DocumentPreviewer({
             href={fileData?.objectUrl}
             target="_blank"
             rel="noreferrer"
-            className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300 transition-colors"
+            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300 transition-colors shrink-0"
             title="Open In New Window"
           >
-            <ExternalLink size={14} />
+            <ExternalLink size={13} />
           </a>
           <a
             href={fileData?.objectUrl}
             download={filename}
-            className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300 transition-colors"
+            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300 transition-colors shrink-0"
             title="Download Evidence Payload"
           >
-            <Download size={14} />
+            <Download size={13} />
           </a>
         </div>
       </div>
