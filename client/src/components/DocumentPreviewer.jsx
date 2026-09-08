@@ -272,7 +272,7 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
             type="button"
             onClick={handleSignExhibit}
             disabled={signing}
-            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            className="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
             title="Digitally Sign Exhibit with RSA-2048 PKI Key"
           >
             <Key size={13} className={signing ? 'animate-spin' : ''} />
@@ -282,7 +282,7 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
           <button
             type="button"
             onClick={handleViewCertificate}
-            className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            className="whitespace-nowrap flex-shrink-0 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
             title="View BSA 2023 Sec 63 Certificate"
           >
             <Award size={13} />
@@ -290,12 +290,12 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
           </button>
 
           {/* Tamper Simulation Demo Tool */}
-          <div className="flex items-center gap-1 border-l border-slate-300 dark:border-slate-700 pl-2 ml-1">
+          <div className="flex items-center gap-1 border-l border-slate-300 dark:border-slate-700 pl-2 ml-1 overflow-hidden">
             {!tamperState?.isTampered ? (
               <button
                 type="button"
                 onClick={handleSimulateTamper}
-                className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black flex items-center gap-1 cursor-pointer"
+                className="whitespace-nowrap flex-shrink-0 px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-black flex items-center gap-1 cursor-pointer"
                 title="Hackathon Live Demo: Mutate 1 byte in storage to test alert"
               >
                 <Flame size={12} />
@@ -305,7 +305,7 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
               <button
                 type="button"
                 onClick={handleRestoreTamper}
-                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-emerald-500/50"
+                className="whitespace-nowrap flex-shrink-0 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-[10px] font-bold flex items-center gap-1 cursor-pointer border border-emerald-500/50"
                 title="Restore original authentic storage blob"
               >
                 <RotateCcw size={12} />
@@ -316,10 +316,10 @@ export default function DocumentPreviewer({ documentId, filename = '', documentT
             <button
               type="button"
               onClick={handleRunLiveCheck}
-              className="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+              className="whitespace-nowrap flex-shrink-0 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer"
             >
               <ShieldCheck size={12} className="text-emerald-400" />
-              <span>Verify SHA-256</span>
+              <span className="hidden lg:inline">Verify SHA-256</span>
             </button>
           </div>
 
