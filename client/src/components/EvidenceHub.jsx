@@ -917,13 +917,15 @@ export default function EvidenceHub({ onSelectCase }) {
           doc={redactingDoc}
           document={redactingDoc}
           onClose={() => setRedactingDoc(null)}
-          onRedacted={() => {
+          onRedacted={(newDoc) => {
             setRedactingDoc(null);
             loadDocuments();
+            if (newDoc) setSelectedDoc(newDoc);
           }}
-          onComplete={() => {
+          onComplete={(newDoc) => {
             setRedactingDoc(null);
             loadDocuments();
+            if (newDoc) setSelectedDoc(newDoc);
           }}
         />
       )}
