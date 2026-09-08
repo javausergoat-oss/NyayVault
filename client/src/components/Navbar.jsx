@@ -15,9 +15,7 @@ export default function Navbar({ onCaseSelect, theme, toggleTheme, onLogout, cur
           className="flex items-center gap-3 cursor-pointer group"
           onClick={() => onCaseSelect(null)}
         >
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-xl shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
-            <Shield className="text-white" size={24} />
-          </div>
+          <img src="/logo.png" alt="NyayVault Logo" className="w-10 h-10 object-contain rounded-full shadow-md group-hover:scale-105 transition-transform" />
           <div>
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               Nyay<span className="text-blue-600 dark:text-blue-400">Vault</span>

@@ -67,9 +67,7 @@ export default function Sidebar({ activeView, onViewChange, currentUser, mobileO
       {/* Top Brand / Logo */}
       <div className="p-5 pb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#0e1d3e] text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-950/20">
-            <Scale size={20} className="stroke-[1.9]" />
-          </div>
+          <img src="/logo.png" alt="NyayVault Logo" className="w-10 h-10 object-contain rounded-full shrink-0 drop-shadow-md" />
           <div>
             <h1 className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
               Nyay<span className="text-blue-600">Vault</span>

@@ -46,15 +46,6 @@ export default function JudicialPipelineBadge({ className = '' }) {
       color: 'text-emerald-300 bg-[#022c22] border-emerald-400 shadow-[0_0_25px_rgba(16,185,129,0.5)] ring-4 ring-emerald-500/20'
     },
     {
-      id: 'forensics',
-      label: 'Forensics',
-      status: 'Connected',
-      statusType: 'success',
-      exhibits: '42 exhibits',
-      icon: Fingerprint,
-      color: 'text-cyan-400 bg-[#082f49] border-cyan-500/60 shadow-cyan-500/20'
-    },
-    {
       id: 'judiciary',
       label: 'Judiciary',
       status: 'Limited Access',

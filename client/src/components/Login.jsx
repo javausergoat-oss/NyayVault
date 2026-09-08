@@ -80,13 +80,16 @@ export default function Login({ onLoginSuccess }) {
 
           <div className="h-10 w-px bg-slate-300 hidden sm:block" />
 
-          <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
-              Nyay<span className="text-blue-600">Vault</span>
-            </h1>
-            <p className="text-sm font-medium text-slate-500 mt-1 leading-none">
-              Evidence Today. A Safer Tomorrow.
-            </p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="NyayVault Logo" className="h-10 w-10 object-contain rounded-full shadow-md shrink-0" />
+            <div>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">
+                Nyay<span className="text-blue-600">Vault</span>
+              </h1>
+              <p className="text-sm font-medium text-slate-500 mt-1 leading-none">
+                Evidence Today. A Safer Tomorrow.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -168,9 +171,7 @@ export default function Login({ onLoginSuccess }) {
           >
             {/* Top: Header Badge & Title */}
             <div className="text-center shrink-0 mb-2">
-              <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center mx-auto mb-1.5 shadow-sm">
-                <Scale size={20} />
-              </div>
+              <img src="/logo.png" alt="NyayVault Logo" className="w-10 h-10 object-contain rounded-full mx-auto mb-1.5 drop-shadow-md" />
               <h2 className="text-base font-extrabold text-slate-900 tracking-tight">NyayVault</h2>
               <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
                 SECURE EVIDENCE PORTAL
